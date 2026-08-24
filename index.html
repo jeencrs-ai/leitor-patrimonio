@@ -1,3 +1,4 @@
+
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -7,6 +8,8 @@
   <title>Conferência Patrimonial</title>
   <link rel="stylesheet" href="style.css">
   <script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
 </head>
 <body>
 <main class="app">
@@ -115,19 +118,33 @@
       <input id="descricao" type="text" placeholder="Ex.: Computador Dell" autocomplete="off">
     </div>
 
+    <div class="campo">
+      <label for="nomeUsuario">Usuário <small>opcional</small></label>
+      <input id="nomeUsuario" type="text" autocomplete="off" placeholder="Nome do usuário">
+    </div>
+
+    <div class="campo">
+      <label for="cpf">CPF <small>opcional</small></label>
+      <input id="cpf" type="text" inputmode="numeric" placeholder="CPF do usuário" autocomplete="off">
+    </div>
+
     <label class="check-linha">
       <input id="compartilha" type="checkbox">
       <span>Este computador é compartilhado por outro usuário</span>
     </label>
 
-    <div id="campoCpfCompartilhado" class="campo oculto">
-      <label for="cpfCompartilhado">CPF do usuário que compartilha</label>
-      <input id="cpfCompartilhado" type="text" inputmode="numeric" placeholder="Digite o CPF" autocomplete="off">
-    </div>
+    <div id="camposCompartilhado" class="bloco-compartilhado oculto">
+      <div class="titulo-compartilhado">Segundo usuário</div>
 
-    <div class="campo">
-      <label for="cpf">CPF <small>opcional</small></label>
-      <input id="cpf" type="text" inputmode="numeric" placeholder="CPF do responsável" autocomplete="off">
+      <div class="campo">
+        <label for="nomeCompartilhado">Nome do usuário</label>
+        <input id="nomeCompartilhado" type="text" autocomplete="off" placeholder="Nome do usuário">
+      </div>
+
+      <div class="campo">
+        <label for="cpfCompartilhado">CPF do usuário</label>
+        <input id="cpfCompartilhado" type="text" inputmode="numeric" placeholder="CPF do usuário" autocomplete="off">
+      </div>
     </div>
 
     <p id="erroDados" class="erro"></p>
@@ -154,8 +171,12 @@
       </div>
     </div>
 
-    <button id="btnCompartilhar" class="botao botao-principal botao-grande">
-      📤 COMPARTILHAR ARQUIVO
+    <button id="btnWhatsApp" class="botao botao-principal botao-grande">
+      📱 ENVIAR TEXTO PELO WHATSAPP
+    </button>
+
+    <button id="btnCompartilhar" class="botao botao-secundario botao-grande">
+      📄 GERAR / COMPARTILHAR PDF
     </button>
 
     <p id="statusCompartilhar" class="status"></p>
