@@ -2,69 +2,176 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-<meta name="theme-color" content="#111827">
-<title>Conferência Patrimonial</title>
-<link rel="stylesheet" href="style.css">
-<script src="https://unpkg.com/html5-qrcode"></script>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+  <meta name="theme-color" content="#111827">
+  <title>Conferência Patrimonial</title>
+  <link rel="stylesheet" href="style.css">
+  <script src="https://unpkg.com/html5-qrcode"></script>
 </head>
 <body>
 <main class="app">
-<section id="inicio" class="screen">
-  <div class="brand"><div class="brand-icon">✓</div><div><h1>Conferência Patrimonial</h1><p>Leitura rápida de plaquetas</p></div></div>
-  <div class="panel">
-    <label for="setor">Setor</label>
-    <input id="setor" type="text" autocomplete="off" placeholder="Digite o setor">
-    <button id="btnIniciar" class="btn btn-primary btn-large">Iniciar conferência</button>
-    <p id="inicioErro" class="error hidden"></p>
-  </div>
-</section>
 
-<section id="conferencia" class="screen hidden">
-  <header class="topbar">
-    <div><span class="eyebrow">SETOR</span><h2 id="setorAtual">—</h2></div>
-    <div class="counter"><strong id="total">0</strong><span>patrimônios</span></div>
-  </header>
-  <div id="lista" class="lista"></div>
-  <div id="vazio" class="empty"><div class="empty-icon">📷</div><strong>Nenhuma plaqueta capturada</strong><span>Comece lendo a primeira plaqueta.</span></div>
-  <div class="actions">
-    <button id="btnCapturar" class="btn btn-primary btn-large">📷 Capturar plaqueta</button>
-    <button id="btnFinalizar" class="btn btn-secondary">Finalizar conferência</button>
-  </div>
-</section>
+  <!-- TELA 1: SETOR -->
+  <section id="telaSetor">
+    <div class="cabecalho-inicial">
+      <div class="icone">✓</div>
+      <h1>Conferência Patrimonial</h1>
+      <p>Informe o setor para começar.</p>
+    </div>
 
-<section id="leitura" class="screen hidden">
-  <header class="simple-header"><button id="btnVoltarLeitura" class="icon-btn" aria-label="Voltar">←</button><div><span class="eyebrow">CAPTURA</span><h2>Leia a plaqueta</h2></div></header>
-  <div class="scanner-wrap"><div id="reader"></div></div>
-  <p id="statusLeitura" class="status">Aponte a câmera para o código de barras.</p>
-  <button id="btnCancelarLeitura" class="btn btn-secondary">Cancelar</button>
-</section>
+    <div class="campo">
+      <label for="setor">Setor</label>
+      <input id="setor" type="text" placeholder="Ex.: GESAT" autocomplete="off">
+    </div>
 
-<section id="cadastro" class="screen hidden">
-  <header class="simple-header"><button id="btnCancelarCadastro" class="icon-btn" aria-label="Voltar">←</button><div><span class="eyebrow">NOVO PATRIMÔNIO</span><h2>Confirmar dados</h2></div></header>
-  <div class="panel">
-    <label for="plaqueta">Plaqueta <span class="required">*</span></label>
-    <input id="plaqueta" type="text" readonly>
-    <label for="descricao">Descrição <span class="optional">opcional</span></label>
-    <input id="descricao" type="text" autocomplete="off" placeholder="Ex.: Computador Dell">
-    <label for="cpf">CPF <span class="optional">opcional</span></label>
-    <input id="cpf" type="text" inputmode="numeric" autocomplete="off" placeholder="Digite o CPF">
-    <p id="cadastroErro" class="error hidden"></p>
-    <button id="btnSalvar" class="btn btn-primary btn-large">Salvar patrimônio</button>
-  </div>
-</section>
+    <p id="erroSetor" class="erro"></p>
 
-<section id="finalizacao" class="screen hidden">
-  <div class="success-icon">✓</div><h1>Conferência finalizada</h1>
-  <p id="resumoFinal" class="final-summary"></p>
-  <div class="panel summary-panel"><div><span>Setor</span><strong id="finalSetor">—</strong></div><div><span>Patrimônios</span><strong id="finalTotal">0</strong></div></div>
-  <button id="btnCompartilhar" class="btn btn-primary btn-large">📤 Compartilhar arquivo</button>
-  <button id="btnNova" class="btn btn-danger">Nova conferência</button>
-  <button id="btnManter" class="btn btn-secondary">Manter esta conferência</button>
-  <p id="shareStatus" class="status"></p>
-</section>
+    <button id="btnEntrar" class="botao botao-principal">ENTRAR NO SETOR</button>
+  </section>
+
+  <!-- TELA 2: SETOR / LISTA -->
+  <section id="telaSetorAtual" class="oculto">
+    <header class="topo">
+      <div>
+        <span class="rotulo">SETOR</span>
+        <h2 id="nomeSetor">—</h2>
+      </div>
+      <div class="contador">
+        <strong id="quantidade">0</strong>
+        <span>itens</span>
+      </div>
+    </header>
+
+    <div id="lista" class="lista"></div>
+
+    <div id="listaVazia" class="vazio">
+      <div class="vazio-icone">📷</div>
+      <strong>Nenhuma plaqueta lida</strong>
+      <span>Comece pela primeira plaqueta.</span>
+    </div>
+
+    <div class="acoes">
+      <button id="btnLer" class="botao botao-principal botao-grande">
+        📷 LER PLAQUETA
+      </button>
+      <button id="btnFinalizar" class="botao botao-secundario">
+        FINALIZAR CONFERÊNCIA
+      </button>
+    </div>
+  </section>
+
+  <!-- TELA 3: CÂMERA -->
+  <section id="telaCamera" class="oculto">
+    <header class="topo-simples">
+      <button id="btnVoltarCamera" class="voltar">←</button>
+      <div>
+        <span class="rotulo">SETOR</span>
+        <h2 id="setorCamera">—</h2>
+      </div>
+    </header>
+
+    <div class="camera">
+      <div id="reader"></div>
+    </div>
+
+    <p id="statusCamera" class="status">
+      Aponte a câmera para o código de barras.
+    </p>
+
+    <button id="btnCancelarCamera" class="botao botao-secundario">
+      CANCELAR
+    </button>
+  </section>
+
+  <!-- TELA 4: DADOS DA PLAQUETA -->
+  <section id="telaDados" class="oculto">
+    <header class="topo-simples">
+      <button id="btnVoltarDados" class="voltar">←</button>
+      <div>
+        <span class="rotulo">NOVA PLAQUETA</span>
+        <h2>Confirmar dados</h2>
+      </div>
+    </header>
+
+    <div class="cartao-plaqueta">
+      <div class="plaqueta-linha">
+        <div>
+          <span>PLAQUETA</span>
+          <strong id="plaquetaLida">—</strong>
+        </div>
+
+        <div class="glpi-select">
+          <label for="glpi">GLPI</label>
+          <select id="glpi">
+            <option value="NAO">Não instalar</option>
+            <option value="SIM">Instalar GLPI</option>
+          </select>
+        </div>
+      </div>
+    </div>
+
+    <div class="campo">
+      <label for="descricao">Descrição <small>opcional</small></label>
+      <input id="descricao" type="text" placeholder="Ex.: Computador Dell" autocomplete="off">
+    </div>
+
+    <label class="check-linha">
+      <input id="compartilha" type="checkbox">
+      <span>Este computador é compartilhado por outro usuário</span>
+    </label>
+
+    <div id="campoCpfCompartilhado" class="campo oculto">
+      <label for="cpfCompartilhado">CPF do usuário que compartilha</label>
+      <input id="cpfCompartilhado" type="text" inputmode="numeric" placeholder="Digite o CPF" autocomplete="off">
+    </div>
+
+    <div class="campo">
+      <label for="cpf">CPF <small>opcional</small></label>
+      <input id="cpf" type="text" inputmode="numeric" placeholder="CPF do responsável" autocomplete="off">
+    </div>
+
+    <p id="erroDados" class="erro"></p>
+
+    <button id="btnSalvar" class="botao botao-principal botao-grande">
+      SALVAR PATRIMÔNIO
+    </button>
+  </section>
+
+  <!-- TELA 5: FINALIZAÇÃO -->
+  <section id="telaFinal" class="oculto final">
+    <div class="icone-final">✓</div>
+    <h1>Conferência finalizada</h1>
+    <p>Confira o resumo antes de compartilhar.</p>
+
+    <div class="resumo">
+      <div>
+        <span>Setor</span>
+        <strong id="finalSetor">—</strong>
+      </div>
+      <div>
+        <span>Patrimônios</span>
+        <strong id="finalQuantidade">0</strong>
+      </div>
+    </div>
+
+    <button id="btnCompartilhar" class="botao botao-principal botao-grande">
+      📤 COMPARTILHAR ARQUIVO
+    </button>
+
+    <p id="statusCompartilhar" class="status"></p>
+
+    <button id="btnNova" class="botao botao-perigo">
+      NOVA CONFERÊNCIA
+    </button>
+
+    <button id="btnManter" class="botao botao-secundario">
+      VOLTAR PARA A CONFERÊNCIA
+    </button>
+  </section>
+
 </main>
+
 <script src="app.js"></script>
 </body>
 </html>
