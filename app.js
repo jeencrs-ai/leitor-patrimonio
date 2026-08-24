@@ -241,11 +241,13 @@ function salvarPatrimonio() {
     return;
   }
 
-  const editIndex = $("btnSalvar").dataset.editIndex;
+  const editIndexRaw = $("btnSalvar").dataset.editIndex;
+  const editando = editIndexRaw !== undefined;
+  const editIndex = editando ? Number(editIndexRaw) : -1;
 
   const duplicada = conferencia.itens.some(
     (item, index) =>
-      index !== Number(editIndex) &&
+      index !== editIndex &&
       item.plaqueta.toLowerCase() === plaqueta.toLowerCase()
   );
 
@@ -264,11 +266,11 @@ function salvarPatrimonio() {
     compartilha,
     nomeCompartilhado: compartilha ? nomeCompartilhado : "",
     cpfCompartilhado: compartilha ? cpfCompartilhado : "",
-    dataHora: editIndex !== "" ? conferencia.itens[Number(editIndex)].dataHora : new Date().toISOString()
+    dataHora: editando ? conferencia.itens[editIndex].dataHora : new Date().toISOString()
   };
 
-  if (editIndex !== "") {
-    conferencia.itens[Number(editIndex)] = registro;
+  if (editando) {
+    conferencia.itens[editIndex] = registro;
     delete $("btnSalvar").dataset.editIndex;
     $("btnSalvar").textContent = "SALVAR PATRIMÔNIO";
   } else {
