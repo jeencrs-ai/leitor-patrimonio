@@ -612,3 +612,95 @@ p {
     font-size: 14px;
   }
 }
+
+
+/* ===== AJUSTE FINAL DO FORMULÁRIO MOBILE ===== */
+#telaDados {
+  width: 100%;
+  max-width: 100%;
+  overflow: hidden;
+}
+
+#telaDados .cartao-plaqueta {
+  width: 100% !important;
+  margin-bottom: 14px !important;
+  padding: 12px !important;
+}
+
+#telaDados .plaqueta-linha {
+  width: 100% !important;
+  display: grid !important;
+  grid-template-columns: minmax(0, 1fr) 155px !important;
+  gap: 10px !important;
+  align-items: end !important;
+}
+
+#telaDados .cartao-plaqueta strong {
+  font-size: 27px !important;
+  line-height: 1 !important;
+}
+
+#telaDados .glpi-select select {
+  min-height: 42px !important;
+  height: 42px !important;
+  padding: 5px 8px !important;
+  font-size: 14px !important;
+}
+
+#telaDados .campo {
+  margin-bottom: 11px !important;
+}
+
+#telaDados .campo label {
+  margin-bottom: 4px !important;
+}
+
+#telaDados .campo input {
+  min-height: 50px !important;
+  height: 50px !important;
+  padding: 10px 13px !important;
+}
+
+#telaDados .check-linha {
+  min-height: 50px !important;
+  margin: 3px 0 11px !important;
+  padding: 11px 12px !important;
+}
+
+#telaDados .botao-grande {
+  min-height: 58px !important;
+  margin-top: 4px !important;
+}
+
+@media (max-width: 430px) {
+  #telaDados .plaqueta-linha {
+    grid-template-columns: 1fr !important;
+    gap: 8px !important;
+  }
+
+  #telaDados .glpi-select select {
+    width: 100% !important;
+  }
+
+  #telaDados .cartao-plaqueta strong {
+    font-size: 25px !important;
+  }
+}
+
+
+/* ===== AJUSTE FINAL DO FORMULÁRIO MOBILE ===== */
+#telaDados{width:100%;max-width:100%;overflow:hidden}
+#telaDados .cartao-plaqueta{width:100%!important;margin-bottom:14px!important;padding:12px!important}
+#telaDados .plaqueta-linha{width:100%!important;display:grid!important;grid-template-columns:minmax(0,1fr) 155px!important;gap:10px!important;align-items:end!important}
+#telaDados .cartao-plaqueta strong{font-size:27px!important;line-height:1!important}
+#telaDados .glpi-select select{min-height:42px!important;height:42px!important;padding:5px 8px!important;font-size:14px!important}
+#telaDados .campo{margin-bottom:11px!important}
+#telaDados .campo label{margin-bottom:4px!important}
+#telaDados .campo input{min-height:50px!important;height:50px!important;padding:10px 13px!important}
+#telaDados .check-linha{min-height:50px!important;margin:3px 0 11px!important;padding:11px 12px!important}
+#telaDados .botao-grande{min-height:58px!important;margin-top:4px!important}
+@media(max-width:430px){
+ #telaDados .plaqueta-linha{grid-template-columns:1fr!important;gap:8px!important}
+ #telaDados .glpi-select select{width:100%!important}
+ #telaDados .cartao-plaqueta strong{font-size:25px!important}
+}
