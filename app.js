@@ -16,13 +16,34 @@ function carregar() {
 }
 
 function persistir() {
-  localStorage.setItem(CHAVE, JSON.stringify(conferencia));
+  if (!conferencia) return;
+  const texto=JSON.stringify(conferencia);
+  localStorage.setItem(CHAVE,texto);
+  localStorage.setItem(BACKUP_CHAVE,texto);
 }
 
 function tela(nome) {
   const telas = ["telaSetor", "telaSetorAtual", "telaCamera", "telaDados", "telaFinal"];
   telas.forEach((id) => $(id).classList.toggle("oculto", id !== nome));
   window.scrollTo(0, 0);
+}
+
+function abrirResponsavel() {
+  const r=conferencia.responsavel||{nome:"",cpf:""};
+  $("nomeResponsavel").value=r.nome;
+  $("cpfResponsavel").value=r.cpf;
+  $("erroResponsavel").textContent="";
+  tela("telaResponsavel");
+}
+
+function salvarResponsavel() {
+  const nome=$("nomeResponsavel").value.trim();
+  const cpf=$("cpfResponsavel").value.replace(/\\D/g,"").slice(0,11);
+  if(!nome||!cpf){$("erroResponsavel").textContent="Informe nome e CPF do usuário.";return;}
+  conferencia.responsavel={nome,cpf};
+  persistir();
+  renderizarLista();
+  tela("telaSetorAtual");
 }
 
 function entrarNoSetor() {
@@ -36,6 +57,7 @@ function entrarNoSetor() {
 
   conferencia = {
     setor,
+    responsavel: {nome:"",cpf:""},
     criadoEm: new Date().toISOString(),
     finalizadoEm: null,
     itens: []
@@ -48,8 +70,11 @@ function entrarNoSetor() {
 }
 
 function renderizarLista() {
-  $("nomeSetor").textContent = conferencia.setor;
-  $("setorCamera").textContent = conferencia.setor;
+  $("nomeSetor").textContent=conferencia.setor;
+  $("setorCamera").textContent=conferencia.setor;
+  const r=conferencia.responsavel||{nome:"",cpf:""};
+  $("responsavelAtual").textContent=r.nome||"Não informado";
+  $("cpfResponsavelAtual").textContent=r.cpf?`CPF: ${r.cpf}`:"";
   $("quantidade").textContent = conferencia.itens.length;
 
   const lista = $("lista");
@@ -57,7 +82,8 @@ function renderizarLista() {
 
   $("listaVazia").classList.toggle("oculto", conferencia.itens.length !== 0);
 
-  conferencia.itens.forEach((item, index) => {
+  [...conferencia.itens].reverse().forEach((item, reverseIndex) => {
+    const index=conferencia.itens.length-1-reverseIndex;
     const div = document.createElement("article");
     div.className = "item";
 
@@ -139,6 +165,25 @@ async function fecharCamera() {
   $("reader").innerHTML = "";
 }
 
+function abrirDigitacaoManual() {
+  $("codigoManual").value = "";
+  $("erroManual").textContent = "";
+  tela("telaManual");
+  setTimeout(() => $("codigoManual").focus(), 100);
+}
+
+function continuarDigitacaoManual() {
+  const codigo = $("codigoManual").value.trim();
+
+  if (!codigo) {
+    $("erroManual").textContent = "Digite o código da plaqueta.";
+    $("codigoManual").focus();
+    return;
+  }
+
+  abrirFormulario(codigo);
+}
+
 function abrirFormulario(codigo) {
   $("plaquetaLida").textContent = codigo;
   $("descricao").value = "";
@@ -189,8 +234,9 @@ function finalizar() {
   conferencia.finalizadoEm = new Date().toISOString();
   persistir();
 
-  $("finalSetor").textContent = conferencia.setor;
-  $("finalQuantidade").textContent = conferencia.itens.length;
+  $("finalSetor").textContent=conferencia.setor;
+  $("finalResponsavel").textContent=(conferencia.responsavel&&conferencia.responsavel.nome)||"Não informado";
+  $("finalQuantidade").textContent=conferencia.itens.length;
   $("statusCompartilhar").textContent = "";
 
   tela("telaFinal");
@@ -227,16 +273,32 @@ function arquivoCsv() {
 }
 
 function nomeArquivo() {
-  const setor = conferencia.setor
-    .normalize("NFD")
-    .replace(/[\u0300-\u036f]/g, "")
-    .replace(/[^a-zA-Z0-9]+/g, "_")
-    .replace(/^_+|_+$/g, "");
-
-  return `conferencia_${setor}_${new Date().toISOString().slice(0, 10)}.csv`;
+  const setor=conferencia.setor.normalize("NFD").replace(/[\\u0300-\\u036f]/g,"").replace(/[^a-zA-Z0-9]+/g,"_").replace(/^_+|_+$/g,"");
+  return `conferencia_${setor||"setor"}_${new Date().toISOString().slice(0,10)}.xlsx`;
 }
 
-async function compartilhar() {
+function criarArquivo() {
+  const r=conferencia.responsavel||{nome:"",cpf:""};
+  const linhas=[
+    ["CONFERÊNCIA PATRIMONIAL"],
+    ["Setor",conferencia.setor],
+    ["Responsável",r.nome||"—"],
+    ["CPF",r.cpf||"—"],
+    ["Total",conferencia.itens.length],
+    [],
+    ["#","Plaqueta","Tipo","Descrição","Compartilhado","2º Usuário","CPF 2º Usuário","Data/Hora"],
+    ...conferencia.itens.map((item,i)=>[i+1,item.plaqueta,item.tipoEquipamento||"CPU",item.descricao||"",item.compartilha?"SIM":"NÃO",item.nomeCompartilhado||"",item.cpfCompartilhado||"",new Date(item.dataHora).toLocaleString("pt-BR")])
+  ];
+  const ws=XLSX.utils.aoa_to_sheet(linhas);
+  ws["!cols"]=[{wch:6},{wch:18},{wch:14},{wch:30},{wch:18},{wch:28},{wch:20},{wch:20}];
+  const wb=XLSX.utils.book_new();
+  XLSX.utils.book_append_sheet(wb,ws,"Conferência");
+  const bytes=XLSX.write(wb,{bookType:"xlsx",type:"array"});
+  const blob=new Blob([bytes],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+  return new File([blob],nomeArquivo(),{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"});
+}
+
+function compartilhar() {
   const arquivo = arquivoCsv();
 
   try {
@@ -305,7 +367,15 @@ function continuarConferencia() {
 }
 
 $("btnEntrar").addEventListener("click", entrarNoSetor);
+$("btnTrocarResponsavel").addEventListener("click", abrirResponsavel);
+$("btnSalvarResponsavel").addEventListener("click", salvarResponsavel);
+$("btnVoltarResponsavel").addEventListener("click",()=>{renderizarLista();tela("telaSetorAtual");});
+$("cpfResponsavel").addEventListener("input",()=>{$("cpfResponsavel").value=$("cpfResponsavel").value.replace(/\\D/g,"").slice(0,11);});
 $("btnLer").addEventListener("click", abrirCamera);
+$("btnDigitar").addEventListener("click", async () => {
+  await fecharCamera();
+  abrirDigitacaoManual();
+});
 $("btnSalvar").addEventListener("click", salvarPatrimonio);
 $("btnFinalizar").addEventListener("click", finalizar);
 $("btnCompartilhar").addEventListener("click", compartilhar);
