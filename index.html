@@ -6,7 +6,100 @@
 
     <title>Leitor de Patrimônio</title>
 
-    <link rel="stylesheet" href="style.css">
+<style>
+    * {
+    box-sizing: border-box;
+}
+
+body {
+    margin: 0;
+    padding: 16px;
+    font-family: Arial, sans-serif;
+    background: #f2f2f2;
+}
+
+.container {
+    width: 100%;
+    max-width: 500px;
+    margin: auto;
+}
+
+h1 {
+    text-align: center;
+    font-size: 26px;
+    margin: 10px 0 8px;
+}
+
+#status {
+    text-align: center;
+    color: #555;
+    font-size: 17px;
+    margin: 10px 0 16px;
+}
+
+/* Área da câmera */
+#reader {
+    width: 100%;
+    background: #000;
+    border-radius: 12px;
+    overflow: hidden;
+}
+
+/* Botões da biblioteca */
+#reader button {
+    width: 100% !important;
+    min-height: 60px !important;
+    margin: 10px 0 !important;
+    padding: 14px !important;
+    font-size: 20px !important;
+    font-weight: bold !important;
+    border-radius: 10px !important;
+    cursor: pointer;
+}
+
+/* Resultado */
+.resultado {
+    margin-top: 16px;
+    padding: 22px 15px;
+    background: white;
+    border-radius: 12px;
+    text-align: center;
+}
+
+.resultado small {
+    display: block;
+    color: #666;
+    font-size: 14px;
+    margin-bottom: 8px;
+}
+
+#codigo {
+    font-size: 34px;
+    font-weight: bold;
+    word-break: break-all;
+}
+
+/* Ajustes para celular */
+@media (max-width: 600px) {
+
+    body {
+        padding: 10px;
+    }
+
+    h1 {
+        font-size: 24px;
+    }
+
+    #reader button {
+        min-height: 70px !important;
+        font-size: 21px !important;
+    }
+
+    #codigo {
+        font-size: 32px;
+    }
+}
+</style>
 </head>
 
 <body>
