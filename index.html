@@ -7,8 +7,7 @@
   <title>Conferência Patrimonial</title>
   <link rel="stylesheet" href="style.css?v=20260824-2">
   <script src="https://unpkg.com/html5-qrcode"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.2/jspdf.umd.min.js"></script>
-<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf-autotable/3.8.4/jspdf.plugin.autotable.min.js"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
 <body>
 <main class="app">
@@ -50,6 +49,15 @@
       </div>
     </header>
 
+    <div class="responsavel-card">
+      <div>
+        <span class="rotulo">USUÁRIO ATUAL</span>
+        <strong id="responsavelAtual">Não informado</strong>
+        <small id="cpfResponsavelAtual"></small>
+      </div>
+      <button id="btnTrocarResponsavel" class="botao-pequeno" type="button">TROCAR</button>
+    </div>
+
     <div id="lista" class="lista"></div>
 
     <div id="listaVazia" class="vazio">
@@ -66,6 +74,17 @@
         FINALIZAR CONFERÊNCIA
       </button>
     </div>
+  </section>
+
+  <section id="telaResponsavel" class="oculto">
+    <header class="topo-simples">
+      <button id="btnVoltarResponsavel" class="voltar">←</button>
+      <div><span class="rotulo">RESPONSÁVEL</span><h2>Usuário atual</h2></div>
+    </header>
+    <div class="campo"><label for="nomeResponsavel">Nome</label><input id="nomeResponsavel" type="text" placeholder="Nome do usuário" autocomplete="off"></div>
+    <div class="campo"><label for="cpfResponsavel">CPF</label><input id="cpfResponsavel" type="text" inputmode="numeric" placeholder="CPF do usuário" autocomplete="off"></div>
+    <p id="erroResponsavel" class="erro"></p>
+    <button id="btnSalvarResponsavel" class="botao botao-principal botao-grande">USAR ESTE USUÁRIO</button>
   </section>
 
   <!-- TELA 3: CÂMERA -->
@@ -135,11 +154,11 @@
           <strong id="plaquetaLida">—</strong>
         </div>
 
-        <div class="glpi-select">
-          <label for="glpi">GLPI</label>
-          <select id="glpi">
-            <option value="NAO">Não instalar</option>
-            <option value="SIM">Instalar GLPI</option>
+        <div class="tipo-select">
+          <label for="tipoEquipamento">TIPO</label>
+          <select id="tipoEquipamento">
+            <option value="CPU">CPU</option>
+            <option value="MONITOR">MONITOR</option>
           </select>
         </div>
       </div>
@@ -193,10 +212,8 @@
     <p>Confira o resumo antes de compartilhar.</p>
 
     <div class="resumo">
-      <div>
-        <span>Setor</span>
-        <strong id="finalSetor">—</strong>
-      </div>
+      <div><span>Setor</span><strong id="finalSetor">—</strong></div>
+      <div><span>Responsável</span><strong id="finalResponsavel">—</strong></div>
       <div>
         <span>Patrimônios</span>
         <strong id="finalQuantidade">0</strong>
@@ -208,7 +225,7 @@
     </button>
 
     <button id="btnCompartilhar" class="botao botao-secundario botao-grande">
-      📄 GERAR / COMPARTILHAR PDF
+      📊 GERAR / COMPARTILHAR EXCEL
     </button>
 
     <p id="statusCompartilhar" class="status"></p>
