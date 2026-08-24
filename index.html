@@ -6,131 +6,258 @@
 
     <title>Leitor de Patrimônio</title>
 
-<style>
-    * {
-    box-sizing: border-box;
-}
+    <script src="https://unpkg.com/html5-qrcode"></script>
 
-body {
-    margin: 0;
-    padding: 16px;
-    font-family: Arial, sans-serif;
-    background: #f2f2f2;
-}
+    <style>
+        * {
+            box-sizing: border-box;
+        }
 
-.container {
-    width: 100%;
-    max-width: 500px;
-    margin: auto;
-}
+        body {
+            margin: 0;
+            padding: 16px;
+            font-family: Arial, sans-serif;
+            background: #f2f2f2;
+        }
 
-h1 {
-    text-align: center;
-    font-size: 26px;
-    margin: 10px 0 8px;
-}
+        .container {
+            width: 100%;
+            max-width: 500px;
+            margin: auto;
+        }
 
-#status {
-    text-align: center;
-    color: #555;
-    font-size: 17px;
-    margin: 10px 0 16px;
-}
+        h1 {
+            text-align: center;
+            font-size: 26px;
+            margin: 10px 0;
+        }
 
-/* Área da câmera */
-#reader {
-    width: 100%;
-    background: #000;
-    border-radius: 12px;
-    overflow: hidden;
-}
+        #status {
+            text-align: center;
+            color: #555;
+            font-size: 17px;
+            margin: 10px 0 16px;
+        }
 
-/* Botões da biblioteca */
-#reader button {
-    width: 100% !important;
-    min-height: 60px !important;
-    margin: 10px 0 !important;
-    padding: 14px !important;
-    font-size: 20px !important;
-    font-weight: bold !important;
-    border-radius: 10px !important;
-    cursor: pointer;
-}
+        /* BOTÃO PRINCIPAL */
+        #btnCamera {
+            display: block;
+            width: 100%;
+            height: 75px;
+            border: none;
+            border-radius: 12px;
+            background: #222;
+            color: white;
+            font-size: 22px;
+            font-weight: bold;
+            cursor: pointer;
+            margin-bottom: 16px;
+        }
 
-/* Resultado */
-.resultado {
-    margin-top: 16px;
-    padding: 22px 15px;
-    background: white;
-    border-radius: 12px;
-    text-align: center;
-}
+        #btnCamera:active {
+            transform: scale(0.98);
+        }
 
-.resultado small {
-    display: block;
-    color: #666;
-    font-size: 14px;
-    margin-bottom: 8px;
-}
+        #btnCamera:disabled {
+            opacity: 0.6;
+        }
 
-#codigo {
-    font-size: 34px;
-    font-weight: bold;
-    word-break: break-all;
-}
+        /* CÂMERA */
+        #reader {
+            width: 100%;
+            background: #000;
+            border-radius: 12px;
+            overflow: hidden;
+            display: none;
+        }
 
-/* Ajustes para celular */
-@media (max-width: 600px) {
+        /* RESULTADO */
+        .resultado {
+            margin-top: 16px;
+            padding: 22px 15px;
+            background: white;
+            border-radius: 12px;
+            text-align: center;
+        }
 
-    body {
-        padding: 10px;
-    }
+        .resultado small {
+            display: block;
+            color: #666;
+            font-size: 14px;
+            margin-bottom: 8px;
+        }
 
-    h1 {
-        font-size: 24px;
-    }
+        #codigo {
+            font-size: 34px;
+            font-weight: bold;
+            word-break: break-all;
+        }
 
-    #reader button {
-        min-height: 70px !important;
-        font-size: 21px !important;
-    }
+        @media (max-width: 600px) {
 
-    #codigo {
-        font-size: 32px;
-    }
-}
-</style>
+            body {
+                padding: 10px;
+            }
+
+            h1 {
+                font-size: 24px;
+            }
+
+            #btnCamera {
+                height: 80px;
+                font-size: 22px;
+            }
+
+            #codigo {
+                font-size: 32px;
+            }
+        }
+    </style>
 </head>
 
 <body>
 
-    <main class="container">
+<div class="container">
 
-        <h1>Leitor de Patrimônio</h1>
+    <h1>Leitor de Patrimônio</h1>
 
-        <p id="status">
-            Clique em iniciar para abrir a câmera.
-        </p>
+    <p id="status">
+        Clique no botão para iniciar a câmera.
+    </p>
 
-        <button id="btnIniciar">
-            Iniciar câmera
-        </button>
+    <button id="btnCamera">
+        📷 INICIAR CÂMERA
+    </button>
 
-        <div class="camera-container">
-            <video id="camera" autoplay playsinline></video>
-        </div>
+    <div id="reader"></div>
 
-        <div class="resultado">
-            <span>Código capturado:</span>
+    <div class="resultado">
 
-            <strong id="codigo">
-                —
-            </strong>
-        </div>
+        <small>CÓDIGO CAPTURADO</small>
 
-    </main>
+        <div id="codigo">---</div>
 
-    <script src="app.js"></script>
+    </div>
+
+</div>
+
+<script>
+
+    const btnCamera = document.getElementById("btnCamera");
+    const reader = document.getElementById("reader");
+    const status = document.getElementById("status");
+    const codigo = document.getElementById("codigo");
+
+    let scanner = null;
+    let cameraAtiva = false;
+
+    btnCamera.addEventListener("click", iniciarCamera);
+
+    async function iniciarCamera() {
+
+        if (cameraAtiva) {
+            return;
+        }
+
+        try {
+
+            btnCamera.disabled = true;
+
+            status.textContent = "Abrindo câmera...";
+
+            reader.style.display = "block";
+
+            scanner = new Html5Qrcode("reader");
+
+            await scanner.start(
+                {
+                    facingMode: "environment"
+                },
+                {
+                    fps: 10,
+
+                    qrbox: {
+                        width: 300,
+                        height: 150
+                    },
+
+                    formatsToSupport: [
+                        Html5QrcodeSupportedFormats.CODE_128,
+                        Html5QrcodeSupportedFormats.CODE_39,
+                        Html5QrcodeSupportedFormats.CODE_93,
+                        Html5QrcodeSupportedFormats.EAN_13,
+                        Html5QrcodeSupportedFormats.EAN_8,
+                        Html5QrcodeSupportedFormats.ITF,
+                        Html5QrcodeSupportedFormats.UPC_A,
+                        Html5QrcodeSupportedFormats.UPC_E
+                    ]
+                },
+
+                (decodedText) => {
+
+                    codigo.textContent = decodedText;
+
+                    status.textContent = "✓ Código encontrado!";
+
+                    console.log("Código:", decodedText);
+
+                    pararCamera();
+
+                },
+
+                () => {
+                    // Erros de leitura são ignorados
+                }
+            );
+
+            cameraAtiva = true;
+
+            btnCamera.textContent = "📷 CÂMERA ATIVA";
+
+            status.textContent =
+                "Aponte a câmera para o código de barras.";
+
+        } catch (erro) {
+
+            console.error(erro);
+
+            status.textContent =
+                "Não foi possível iniciar a câmera.";
+
+            reader.style.display = "none";
+
+            btnCamera.disabled = false;
+        }
+    }
+
+    async function pararCamera() {
+
+        if (!scanner) {
+            return;
+        }
+
+        try {
+
+            await scanner.stop();
+
+            scanner.clear();
+
+        } catch (erro) {
+
+            console.error(erro);
+
+        }
+
+        cameraAtiva = false;
+
+        btnCamera.disabled = false;
+
+        btnCamera.textContent = "📷 LER OUTRO CÓDIGO";
+
+        reader.style.display = "none";
+    }
+
+</script>
 
 </body>
 </html>
