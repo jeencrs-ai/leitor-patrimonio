@@ -1,4 +1,5 @@
-const CHAVE = "conferencia_patrimonial_v2";
+const CHAVE = "conferencia_patrimonial_v3";
+const BACKUP_CHAVE = "conferencia_patrimonial_backup";
 
 const $ = (id) => document.getElementById(id);
 
@@ -16,7 +17,11 @@ function carregar() {
 }
 
 function persistir() {
-  localStorage.setItem(CHAVE, JSON.stringify(conferencia));
+  if (!conferencia) return;
+
+  const texto = JSON.stringify(conferencia);
+  localStorage.setItem(CHAVE, texto);
+  localStorage.setItem(BACKUP_CHAVE, texto);
 }
 
 function tela(nome) {
@@ -26,6 +31,13 @@ function tela(nome) {
 }
 
 function entrarNoSetor() {
+  if (conferencia && Array.isArray(conferencia.itens)) {
+    $("erroSetor").textContent =
+      "Existe uma conferência salva. Use 'Continuar conferência' ou finalize a atual antes de iniciar outra.";
+    mostrarRecuperacao();
+    return;
+  }
+
   const setor = $("setor").value.trim();
 
   if (!setor) {
@@ -63,7 +75,10 @@ function renderizarLista() {
 
     div.innerHTML = `
       <div class="item-numero">#${String(index + 1).padStart(2, "0")}</div>
-      <div class="item-plaqueta">${escapar(item.plaqueta)}</div>
+      <div class="item-cabecalho">
+        <div class="item-plaqueta">${escapar(item.plaqueta)}</div>
+        <button class="editar-item" type="button" data-index="${index}">EDITAR</button>
+      </div>
       ${item.descricao ? `<div class="item-descricao">${escapar(item.descricao)}</div>` : ""}
       ${item.nomeUsuario ? `<div class="item-cpf">Usuário: ${escapar(item.nomeUsuario)}</div>` : ""}
       ${item.cpf ? `<div class="item-cpf">CPF: ${escapar(item.cpf)}</div>` : ""}
@@ -72,6 +87,10 @@ function renderizarLista() {
     `;
 
     lista.appendChild(div);
+
+    div.querySelector(".editar-item").addEventListener("click", () => {
+      abrirEdicao(index);
+    });
   });
 }
 
@@ -172,6 +191,29 @@ function abrirFormulario(codigo) {
   $("cpfCompartilhado").value = "";
   $("camposCompartilhado").classList.add("oculto");
   $("erroDados").textContent = "";
+  delete $("btnSalvar").dataset.editIndex;
+  $("btnSalvar").textContent = "SALVAR PATRIMÔNIO";
+
+  tela("telaDados");
+}
+
+function abrirEdicao(index) {
+  const item = conferencia.itens[index];
+  if (!item) return;
+
+  $("plaquetaLida").textContent = item.plaqueta;
+  $("descricao").value = item.descricao || "";
+  $("nomeUsuario").value = item.nomeUsuario || "";
+  $("cpf").value = item.cpf || "";
+  $("glpi").value = item.glpi || "NAO";
+  $("compartilha").checked = !!item.compartilha;
+  $("nomeCompartilhado").value = item.nomeCompartilhado || "";
+  $("cpfCompartilhado").value = item.cpfCompartilhado || "";
+  $("camposCompartilhado").classList.toggle("oculto", !item.compartilha);
+  $("erroDados").textContent = "";
+
+  $("btnSalvar").textContent = "SALVAR ALTERAÇÕES";
+  $("btnSalvar").dataset.editIndex = String(index);
 
   tela("telaDados");
 }
@@ -199,8 +241,12 @@ function salvarPatrimonio() {
     return;
   }
 
+  const editIndex = $("btnSalvar").dataset.editIndex;
+
   const duplicada = conferencia.itens.some(
-    (item) => item.plaqueta.toLowerCase() === plaqueta.toLowerCase()
+    (item, index) =>
+      index !== Number(editIndex) &&
+      item.plaqueta.toLowerCase() === plaqueta.toLowerCase()
   );
 
   if (duplicada) {
@@ -209,7 +255,7 @@ function salvarPatrimonio() {
     return;
   }
 
-  conferencia.itens.push({
+  const registro = {
     plaqueta,
     descricao,
     nomeUsuario,
@@ -218,8 +264,16 @@ function salvarPatrimonio() {
     compartilha,
     nomeCompartilhado: compartilha ? nomeCompartilhado : "",
     cpfCompartilhado: compartilha ? cpfCompartilhado : "",
-    dataHora: new Date().toISOString()
-  });
+    dataHora: editIndex !== "" ? conferencia.itens[Number(editIndex)].dataHora : new Date().toISOString()
+  };
+
+  if (editIndex !== "") {
+    conferencia.itens[Number(editIndex)] = registro;
+    delete $("btnSalvar").dataset.editIndex;
+    $("btnSalvar").textContent = "SALVAR PATRIMÔNIO";
+  } else {
+    conferencia.itens.push(registro);
+  }
 
   persistir();
   renderizarLista();
@@ -396,6 +450,7 @@ function novaConferencia() {
   if (!confirmou) return;
 
   localStorage.removeItem(CHAVE);
+  localStorage.removeItem(BACKUP_CHAVE);
   conferencia = null;
 
   $("setor").value = "";
@@ -511,15 +566,28 @@ $("compartilha").addEventListener("change", () => {
   }
 });
 
-if (conferencia && conferencia.setor && Array.isArray(conferencia.itens)) {
-  const continuar = confirm(
-    `Existe uma conferência do setor "${conferencia.setor}" com ${conferencia.itens.length} patrimônio(s).\\n\\nOK = continuar\\nCancelar = iniciar nova`
-  );
+function mostrarRecuperacao() {
+  const box = $("recuperarBox");
 
-  if (continuar) {
-    continuarConferencia();
-  } else {
-    localStorage.removeItem(CHAVE);
-    conferencia = null;
+  if (!conferencia) {
+    box.classList.add("oculto");
+    return;
   }
+
+  $("recuperarInfo").textContent =
+    `Setor: ${conferencia.setor} • ${conferencia.itens.length} patrimônio(s)`;
+
+  box.classList.remove("oculto");
+}
+
+function continuarSalva() {
+  if (!conferencia) return;
+  renderizarLista();
+  tela("telaSetorAtual");
+}
+
+$("btnContinuarSalva").addEventListener("click", continuarSalva);
+
+if (conferencia && conferencia.setor && Array.isArray(conferencia.itens)) {
+  mostrarRecuperacao();
 }
