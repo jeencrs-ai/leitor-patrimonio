@@ -1,0 +1,43 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
+    <title>Leitor de Patrimônio</title>
+
+    <link rel="stylesheet" href="style.css">
+</head>
+
+<body>
+
+    <main class="container">
+
+        <h1>Leitor de Patrimônio</h1>
+
+        <p id="status">
+            Clique em iniciar para abrir a câmera.
+        </p>
+
+        <button id="btnIniciar">
+            Iniciar câmera
+        </button>
+
+        <div class="camera-container">
+            <video id="camera" autoplay playsinline></video>
+        </div>
+
+        <div class="resultado">
+            <span>Código capturado:</span>
+
+            <strong id="codigo">
+                —
+            </strong>
+        </div>
+
+    </main>
+
+    <script src="app.js"></script>
+
+</body>
+</html>
