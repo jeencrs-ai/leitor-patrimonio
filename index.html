@@ -1,4 +1,3 @@
-
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
@@ -81,8 +80,35 @@
       Aponte a câmera para o código de barras.
     </p>
 
+    <button id="btnDigitar" class="botao botao-principal">
+      ⌨️ DIGITAR CÓDIGO
+    </button>
+
     <button id="btnCancelarCamera" class="botao botao-secundario">
       CANCELAR
+    </button>
+  </section>
+
+  <!-- TELA 4: DIGITAÇÃO MANUAL -->
+  <section id="telaManual" class="oculto">
+    <header class="topo-simples">
+      <button id="btnVoltarManual" class="voltar">←</button>
+      <div>
+        <span class="rotulo">DIGITAÇÃO MANUAL</span>
+        <h2>Informar plaqueta</h2>
+      </div>
+    </header>
+
+    <div class="campo">
+      <label for="codigoManual">Código da plaqueta</label>
+      <input id="codigoManual" type="text" inputmode="numeric"
+             placeholder="Digite o código" autocomplete="off">
+    </div>
+
+    <p id="erroManual" class="erro"></p>
+
+    <button id="btnContinuarManual" class="botao botao-principal botao-grande">
+      CONTINUAR
     </button>
   </section>
 
