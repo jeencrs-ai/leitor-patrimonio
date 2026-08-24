@@ -20,7 +20,7 @@ function persistir() {
 }
 
 function tela(nome) {
-  const telas = ["telaSetor", "telaSetorAtual", "telaCamera", "telaDados", "telaFinal"];
+  const telas = ["telaSetor", "telaSetorAtual", "telaCamera", "telaManual", "telaDados", "telaFinal"];
   telas.forEach((id) => $(id).classList.toggle("oculto", id !== nome));
   window.scrollTo(0, 0);
 }
@@ -140,6 +140,25 @@ async function fecharCamera() {
   scanner = null;
   lendo = false;
   $("reader").innerHTML = "";
+}
+
+function abrirDigitacaoManual() {
+  $("codigoManual").value = "";
+  $("erroManual").textContent = "";
+  tela("telaManual");
+  setTimeout(() => $("codigoManual").focus(), 100);
+}
+
+function continuarDigitacaoManual() {
+  const codigo = $("codigoManual").value.trim();
+
+  if (!codigo) {
+    $("erroManual").textContent = "Digite o código da plaqueta.";
+    $("codigoManual").focus();
+    return;
+  }
+
+  abrirFormulario(codigo);
 }
 
 function abrirFormulario(codigo) {
@@ -429,6 +448,20 @@ function enviarWhatsApp() {
 $("btnEntrar").addEventListener("click", entrarNoSetor);
 $("btnWhatsApp").addEventListener("click", enviarWhatsApp);
 $("btnLer").addEventListener("click", abrirCamera);
+$("btnDigitar").addEventListener("click", async () => {
+  await fecharCamera();
+  abrirDigitacaoManual();
+});
+$("btnContinuarManual").addEventListener("click", continuarDigitacaoManual);
+$("btnVoltarManual").addEventListener("click", () => {
+  $("codigoManual").value = "";
+  $("erroManual").textContent = "";
+  renderizarLista();
+  tela("telaSetorAtual");
+});
+$("codigoManual").addEventListener("keydown", (e) => {
+  if (e.key === "Enter") continuarDigitacaoManual();
+});
 $("btnSalvar").addEventListener("click", salvarPatrimonio);
 $("btnFinalizar").addEventListener("click", finalizar);
 $("btnCompartilhar").addEventListener("click", compartilhar);
