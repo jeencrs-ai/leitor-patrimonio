@@ -495,3 +495,24 @@ body {
   margin: 0;
   flex: 0 0 auto;
 }
+
+
+/* Entrada manual da plaqueta */
+#telaManual .campo {
+  margin-top: 28px;
+}
+
+#codigoManual {
+  font-size: 24px;
+  font-weight: 700;
+  text-align: center;
+  letter-spacing: .04em;
+}
+
+#telaCamera #btnDigitar {
+  margin-top: 10px;
+}
+
+#telaCamera #btnCancelarCamera {
+  margin-top: 9px;
+}
