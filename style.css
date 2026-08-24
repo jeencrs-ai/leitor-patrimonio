@@ -356,3 +356,12 @@ h1, h2, p { margin-top: 0; }
   .app { padding-inline: 10px; }
   .cabecalho-inicial h1 { font-size: 24px; }
 }
+
+#telaDados label[for="nomeUsuario"],#telaDados #nomeUsuario,#telaDados label[for="cpf"],#telaDados #cpf{display:none!important;}
+
+.responsavel-card{display:flex;align-items:center;justify-content:space-between;gap:10px;margin:0 0 12px;padding:12px;border:1px solid #e5e7eb;border-radius:12px;background:#fff}
+.responsavel-card strong{display:block;font-size:16px;overflow-wrap:anywhere}
+.responsavel-card small{display:block;margin-top:3px;color:#6b7280;font-size:12px}
+.botao-pequeno{min-height:40px;padding:8px 10px;border:1px solid #d1d5db;border-radius:9px;background:#fff;font-size:11px;font-weight:800}
+.tipo-select label{display:block;color:#6b7280;font-size:10px;font-weight:800;letter-spacing:.08em;margin-bottom:4px}
+.tipo-select select{width:100%;min-height:42px;padding:6px 8px;border:1px solid #d1d5db;border-radius:10px;background:#fff;font-size:14px}
