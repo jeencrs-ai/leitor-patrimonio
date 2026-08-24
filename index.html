@@ -6,258 +6,38 @@
 
     <title>Leitor de Patrimônio</title>
 
-    <script src="https://unpkg.com/html5-qrcode"></script>
-
-    <style>
-        * {
-            box-sizing: border-box;
-        }
-
-        body {
-            margin: 0;
-            padding: 16px;
-            font-family: Arial, sans-serif;
-            background: #f2f2f2;
-        }
-
-        .container {
-            width: 100%;
-            max-width: 500px;
-            margin: auto;
-        }
-
-        h1 {
-            text-align: center;
-            font-size: 26px;
-            margin: 10px 0;
-        }
-
-        #status {
-            text-align: center;
-            color: #555;
-            font-size: 17px;
-            margin: 10px 0 16px;
-        }
-
-        /* BOTÃO PRINCIPAL */
-        #btnCamera {
-            display: block;
-            width: 100%;
-            height: 75px;
-            border: none;
-            border-radius: 12px;
-            background: #222;
-            color: white;
-            font-size: 22px;
-            font-weight: bold;
-            cursor: pointer;
-            margin-bottom: 16px;
-        }
-
-        #btnCamera:active {
-            transform: scale(0.98);
-        }
-
-        #btnCamera:disabled {
-            opacity: 0.6;
-        }
-
-        /* CÂMERA */
-        #reader {
-            width: 100%;
-            background: #000;
-            border-radius: 12px;
-            overflow: hidden;
-            display: none;
-        }
-
-        /* RESULTADO */
-        .resultado {
-            margin-top: 16px;
-            padding: 22px 15px;
-            background: white;
-            border-radius: 12px;
-            text-align: center;
-        }
-
-        .resultado small {
-            display: block;
-            color: #666;
-            font-size: 14px;
-            margin-bottom: 8px;
-        }
-
-        #codigo {
-            font-size: 34px;
-            font-weight: bold;
-            word-break: break-all;
-        }
-
-        @media (max-width: 600px) {
-
-            body {
-                padding: 10px;
-            }
-
-            h1 {
-                font-size: 24px;
-            }
-
-            #btnCamera {
-                height: 80px;
-                font-size: 22px;
-            }
-
-            #codigo {
-                font-size: 32px;
-            }
-        }
-    </style>
+    <link rel="stylesheet" href="style.css">
 </head>
 
 <body>
 
-<div class="container">
+    <main class="container">
 
-    <h1>Leitor de Patrimônio</h1>
+        <h1>Leitor de Patrimônio</h1>
 
-    <p id="status">
-        Clique no botão para iniciar a câmera.
-    </p>
+        <p id="status">
+            Clique em iniciar para abrir a câmera.
+        </p>
 
-    <button id="btnCamera">
-        📷 INICIAR CÂMERA
-    </button>
+        <button id="btnIniciar">
+            Iniciar câmera
+        </button>
 
-    <div id="reader"></div>
+        <div class="camera-container">
+            <video id="camera" autoplay playsinline></video>
+        </div>
 
-    <div class="resultado">
+        <div class="resultado">
+            <span>Código capturado:</span>
 
-        <small>CÓDIGO CAPTURADO</small>
+            <strong id="codigo">
+                —
+            </strong>
+        </div>
 
-        <div id="codigo">---</div>
+    </main>
 
-    </div>
-
-</div>
-
-<script>
-
-    const btnCamera = document.getElementById("btnCamera");
-    const reader = document.getElementById("reader");
-    const status = document.getElementById("status");
-    const codigo = document.getElementById("codigo");
-
-    let scanner = null;
-    let cameraAtiva = false;
-
-    btnCamera.addEventListener("click", iniciarCamera);
-
-    async function iniciarCamera() {
-
-        if (cameraAtiva) {
-            return;
-        }
-
-        try {
-
-            btnCamera.disabled = true;
-
-            status.textContent = "Abrindo câmera...";
-
-            reader.style.display = "block";
-
-            scanner = new Html5Qrcode("reader");
-
-            await scanner.start(
-                {
-                    facingMode: "environment"
-                },
-                {
-                    fps: 10,
-
-                    qrbox: {
-                        width: 300,
-                        height: 150
-                    },
-
-                    formatsToSupport: [
-                        Html5QrcodeSupportedFormats.CODE_128,
-                        Html5QrcodeSupportedFormats.CODE_39,
-                        Html5QrcodeSupportedFormats.CODE_93,
-                        Html5QrcodeSupportedFormats.EAN_13,
-                        Html5QrcodeSupportedFormats.EAN_8,
-                        Html5QrcodeSupportedFormats.ITF,
-                        Html5QrcodeSupportedFormats.UPC_A,
-                        Html5QrcodeSupportedFormats.UPC_E
-                    ]
-                },
-
-                (decodedText) => {
-
-                    codigo.textContent = decodedText;
-
-                    status.textContent = "✓ Código encontrado!";
-
-                    console.log("Código:", decodedText);
-
-                    pararCamera();
-
-                },
-
-                () => {
-                    // Erros de leitura são ignorados
-                }
-            );
-
-            cameraAtiva = true;
-
-            btnCamera.textContent = "📷 CÂMERA ATIVA";
-
-            status.textContent =
-                "Aponte a câmera para o código de barras.";
-
-        } catch (erro) {
-
-            console.error(erro);
-
-            status.textContent =
-                "Não foi possível iniciar a câmera.";
-
-            reader.style.display = "none";
-
-            btnCamera.disabled = false;
-        }
-    }
-
-    async function pararCamera() {
-
-        if (!scanner) {
-            return;
-        }
-
-        try {
-
-            await scanner.stop();
-
-            scanner.clear();
-
-        } catch (erro) {
-
-            console.error(erro);
-
-        }
-
-        cameraAtiva = false;
-
-        btnCamera.disabled = false;
-
-        btnCamera.textContent = "📷 LER OUTRO CÓDIGO";
-
-        reader.style.display = "none";
-    }
-
-</script>
+    <script src="app.js"></script>
 
 </body>
 </html>
