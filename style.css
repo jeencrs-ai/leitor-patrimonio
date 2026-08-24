@@ -356,3 +356,142 @@ h1, h2, p { margin-top: 0; }
   .app { padding-inline: 10px; }
   .cabecalho-inicial h1 { font-size: 24px; }
 }
+
+
+/* CORREÇÃO DE RESPONSIVIDADE */
+html,
+body {
+  width: 100%;
+  max-width: 100%;
+  overflow-x: hidden;
+}
+
+body {
+  min-width: 0;
+}
+
+.app {
+  width: 100%;
+  max-width: 560px;
+  min-width: 0;
+  margin: 0 auto;
+  padding: 14px 12px 28px;
+  overflow: hidden;
+}
+
+#telaSetor,
+#telaSetorAtual,
+#telaCamera,
+#telaDados,
+#telaFinal {
+  width: 100%;
+  max-width: 100%;
+  min-width: 0;
+}
+
+.topo,
+.topo-simples,
+.plaqueta-linha,
+.resumo,
+.item,
+.cartao-plaqueta,
+.campo,
+.camera,
+#reader {
+  max-width: 100%;
+  min-width: 0;
+}
+
+.campo input,
+.glpi-select select,
+.botao {
+  max-width: 100%;
+  width: 100%;
+}
+
+.plaqueta-linha {
+  grid-template-columns: minmax(0, 1fr) minmax(0, 170px);
+}
+
+#reader,
+#reader > div,
+#reader video,
+#reader canvas {
+  max-width: 100% !important;
+}
+
+#reader video {
+  display: block;
+  object-fit: cover;
+}
+
+@media (max-width: 430px) {
+  .app {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .plaqueta-linha {
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .topo h2,
+  .topo-simples h2 {
+    font-size: 20px;
+  }
+
+  .contador {
+    min-width: 72px;
+  }
+
+  .item-plaqueta {
+    font-size: 19px;
+  }
+
+  .cartao-plaqueta strong {
+    font-size: 26px;
+  }
+}
+
+
+/* Usuário principal e segundo usuário */
+.bloco-compartilhado {
+  margin: 4px 0 17px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: #f9fafb;
+}
+
+.titulo-compartilhado {
+  margin-bottom: 14px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #374151;
+}
+
+.bloco-compartilhado .campo:last-child {
+  margin-bottom: 0;
+}
+
+.check-linha {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  margin: 4px 0 16px;
+  padding: 14px;
+  border: 1px solid #e5e7eb;
+  border-radius: 12px;
+  background: white;
+  font-weight: 700;
+  line-height: 1.35;
+  cursor: pointer;
+}
+
+.check-linha input {
+  width: 22px;
+  height: 22px;
+  min-height: 22px;
+  margin: 0;
+  flex: 0 0 auto;
+}
