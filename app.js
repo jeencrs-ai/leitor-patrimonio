@@ -65,9 +65,10 @@ function renderizarLista() {
       <div class="item-numero">#${String(index + 1).padStart(2, "0")}</div>
       <div class="item-plaqueta">${escapar(item.plaqueta)}</div>
       ${item.descricao ? `<div class="item-descricao">${escapar(item.descricao)}</div>` : ""}
+      ${item.nomeUsuario ? `<div class="item-cpf">Usuário: ${escapar(item.nomeUsuario)}</div>` : ""}
       ${item.cpf ? `<div class="item-cpf">CPF: ${escapar(item.cpf)}</div>` : ""}
       <div class="item-cpf">GLPI: ${item.glpi === "SIM" ? "Instalar" : "Não instalar"}</div>
-      ${item.compartilha ? `<div class="item-cpf">Compartilhado • CPF: ${escapar(item.cpfCompartilhado)}</div>` : ""}
+      ${item.compartilha ? `<div class="item-cpf">2º usuário: ${escapar(item.nomeCompartilhado)} • CPF: ${escapar(item.cpfCompartilhado)}</div>` : ""}
     `;
 
     lista.appendChild(div);
@@ -144,11 +145,13 @@ async function fecharCamera() {
 function abrirFormulario(codigo) {
   $("plaquetaLida").textContent = codigo;
   $("descricao").value = "";
+  $("nomeUsuario").value = "";
   $("cpf").value = "";
   $("glpi").value = "NAO";
   $("compartilha").checked = false;
+  $("nomeCompartilhado").value = "";
   $("cpfCompartilhado").value = "";
-  $("campoCpfCompartilhado").classList.add("oculto");
+  $("camposCompartilhado").classList.add("oculto");
   $("erroDados").textContent = "";
 
   tela("telaDados");
@@ -157,9 +160,11 @@ function abrirFormulario(codigo) {
 function salvarPatrimonio() {
   const plaqueta = $("plaquetaLida").textContent.trim();
   const descricao = $("descricao").value.trim();
+  const nomeUsuario = $("nomeUsuario").value.trim();
   const cpf = $("cpf").value.trim();
   const glpi = $("glpi").value;
   const compartilha = $("compartilha").checked;
+  const nomeCompartilhado = $("nomeCompartilhado").value.trim();
   const cpfCompartilhado = $("cpfCompartilhado").value.trim();
 
   if (!plaqueta || plaqueta === "—") {
@@ -167,9 +172,11 @@ function salvarPatrimonio() {
     return;
   }
 
-  if (compartilha && !cpfCompartilhado) {
-    $("erroDados").textContent = "Informe o CPF do usuário que compartilha o computador.";
-    $("cpfCompartilhado").focus();
+  if (compartilha && (!nomeCompartilhado || !cpfCompartilhado)) {
+    $("erroDados").textContent =
+      "Informe o nome e o CPF do segundo usuário.";
+    if (!nomeCompartilhado) $("nomeCompartilhado").focus();
+    else $("cpfCompartilhado").focus();
     return;
   }
 
@@ -186,9 +193,11 @@ function salvarPatrimonio() {
   conferencia.itens.push({
     plaqueta,
     descricao,
+    nomeUsuario,
     cpf,
     glpi,
     compartilha,
+    nomeCompartilhado: compartilha ? nomeCompartilhado : "",
     cpfCompartilhado: compartilha ? cpfCompartilhado : "",
     dataHora: new Date().toISOString()
   });
@@ -214,39 +223,6 @@ function finalizar() {
   tela("telaFinal");
 }
 
-function csv() {
-  const linhas = [
-    ["Setor", "Plaqueta", "Descrição", "CPF", "Instalar GLPI", "Computador Compartilhado", "CPF Compartilhado", "Data/Hora"],
-    ...conferencia.itens.map((item) => [
-      conferencia.setor,
-      item.plaqueta,
-      item.descricao,
-      item.cpf,
-      item.glpi === "SIM" ? "SIM" : "NAO",
-      item.compartilha ? "SIM" : "NAO",
-      item.cpfCompartilhado || "",
-      new Date(item.dataHora).toLocaleString("pt-BR")
-    ])
-  ];
-
-  return linhas
-    .map((linha) =>
-      linha.map((valor) => `"${String(valor ?? "").replaceAll('"', '""')}"`).join(";")
-    )
-    .join("\r\n");
-}
-
-function arquivoCsv() {
-  const texto = "\ufeff" + csv();
-  const blob = new Blob([texto], { type: "text/csv;charset=utf-8" });
-
-  return new File(
-    [blob],
-    nomeArquivo(),
-    { type: "text/csv;charset=utf-8" }
-  );
-}
-
 function nomeArquivo() {
   const setor = conferencia.setor
     .normalize("NFD")
@@ -254,11 +230,100 @@ function nomeArquivo() {
     .replace(/[^a-zA-Z0-9]+/g, "_")
     .replace(/^_+|_+$/g, "");
 
-  return `conferencia_${setor}_${new Date().toISOString().slice(0, 10)}.csv`;
+  return `conferencia_${setor || "setor"}_${new Date().toISOString().slice(0, 10)}.pdf`;
+}
+
+function criarPdf() {
+  const { jsPDF } = window.jspdf;
+  const doc = new jsPDF({
+    orientation: "landscape",
+    unit: "mm",
+    format: "a4"
+  });
+
+  const margem = 12;
+  const agora = new Date().toLocaleString("pt-BR");
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(18);
+  doc.text("CONFERÊNCIA PATRIMONIAL", margem, 15);
+
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(10);
+  doc.text(`Setor: ${conferencia.setor}`, margem, 22);
+  doc.text(`Total de patrimônios: ${conferencia.itens.length}`, margem, 28);
+  doc.text(`Gerado em: ${agora}`, margem, 34);
+
+  const linhas = conferencia.itens.map((item, index) => [
+    String(index + 1),
+    item.plaqueta,
+    item.descricao || "—",
+    item.nomeUsuario || "—",
+    item.cpf || "—",
+    item.glpi === "SIM" ? "SIM" : "NÃO",
+    item.compartilha ? "SIM" : "NÃO",
+    item.nomeCompartilhado || "—",
+    item.cpfCompartilhado || "—"
+  ]);
+
+  doc.autoTable({
+    startY: 40,
+    margin: { left: margem, right: margem },
+    head: [[
+      "#",
+      "Plaqueta",
+      "Descrição",
+      "Usuário",
+      "CPF",
+      "GLPI",
+      "Compart.",
+      "2º Usuário",
+      "CPF 2º"
+    ]],
+    body: linhas,
+    styles: {
+      font: "helvetica",
+      fontSize: 8,
+      cellPadding: 2.5,
+      overflow: "linebreak",
+      valign: "middle"
+    },
+    headStyles: {
+      fontStyle: "bold"
+    },
+    columnStyles: {
+      0: { cellWidth: 9 },
+      1: { cellWidth: 23 },
+      2: { cellWidth: 42 },
+      3: { cellWidth: 42 },
+      4: { cellWidth: 28 },
+      5: { cellWidth: 18 },
+      6: { cellWidth: 20 },
+      7: { cellWidth: 42 },
+      8: { cellWidth: 28 }
+    }
+  });
+
+  const finalY = doc.lastAutoTable ? doc.lastAutoTable.finalY + 10 : 50;
+
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(9);
+  doc.text("Responsável pela conferência: ________________________________________________", margem, finalY);
+
+  return doc;
+}
+
+function criarArquivo() {
+  const doc = criarPdf();
+  const blob = doc.output("blob");
+
+  return new File([blob], nomeArquivo(), {
+    type: "application/pdf"
+  });
 }
 
 async function compartilhar() {
-  const arquivo = arquivoCsv();
+  const arquivo = criarArquivo();
 
   try {
     if (
@@ -272,11 +337,11 @@ async function compartilhar() {
       });
 
       $("statusCompartilhar").textContent =
-        "Compartilhamento aberto. Escolha o WhatsApp ou outro aplicativo.";
+        "Compartilhamento do PDF aberto. Escolha o WhatsApp ou outro aplicativo.";
     } else {
       baixar(arquivo);
       $("statusCompartilhar").textContent =
-        "O arquivo foi baixado. Envie-o pelo WhatsApp.";
+        "O PDF foi baixado. Envie-o pelo WhatsApp.";
     }
   } catch (erro) {
     if (erro.name === "AbortError") {
@@ -287,7 +352,7 @@ async function compartilhar() {
 
     baixar(arquivo);
     $("statusCompartilhar").textContent =
-      "O compartilhamento não está disponível. O arquivo foi baixado.";
+      "O compartilhamento não está disponível. O PDF foi baixado.";
   }
 }
 
@@ -325,7 +390,44 @@ function continuarConferencia() {
   tela("telaSetorAtual");
 }
 
+
+function textoConferencia() {
+  const linhas = [
+    "CONFERÊNCIA PATRIMONIAL",
+    `Setor: ${conferencia.setor}`,
+    `Total: ${conferencia.itens.length} patrimônio(s)`,
+    "",
+    ...conferencia.itens.map((item, index) => {
+      const partes = [
+        `${index + 1}. Plaqueta: ${item.plaqueta}`,
+        `Descrição: ${item.descricao || "—"}`,
+        `Usuário: ${item.nomeUsuario || "—"}`,
+        `CPF: ${item.cpf || "—"}`,
+        `GLPI: ${item.glpi === "SIM" ? "Instalar" : "Não instalar"}`,
+        `Compartilhado: ${item.compartilha ? "Sim" : "Não"}`
+      ];
+
+      if (item.compartilha) {
+        partes.push(`2º usuário: ${item.nomeCompartilhado || "—"}`);
+        partes.push(`CPF 2º usuário: ${item.cpfCompartilhado || "—"}`);
+      }
+
+      return partes.join("\n");
+    })
+  ];
+
+  return linhas.join("\n\n");
+}
+
+function enviarWhatsApp() {
+  const texto = textoConferencia();
+  const url = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+
+  window.open(url, "_blank");
+}
+
 $("btnEntrar").addEventListener("click", entrarNoSetor);
+$("btnWhatsApp").addEventListener("click", enviarWhatsApp);
 $("btnLer").addEventListener("click", abrirCamera);
 $("btnSalvar").addEventListener("click", salvarPatrimonio);
 $("btnFinalizar").addEventListener("click", finalizar);
@@ -358,20 +460,22 @@ $("cpf").addEventListener("input", () => {
   $("cpf").value = $("cpf").value.replace(/\D/g, "").slice(0, 11);
 });
 
-$("compartilha").addEventListener("change", () => {
-  const ativo = $("compartilha").checked;
-  $("campoCpfCompartilhado").classList.toggle("oculto", !ativo);
-
-  if (ativo) {
-    $("cpfCompartilhado").focus();
-  } else {
-    $("cpfCompartilhado").value = "";
-  }
-});
-
 $("cpfCompartilhado").addEventListener("input", () => {
   $("cpfCompartilhado").value =
     $("cpfCompartilhado").value.replace(/\D/g, "").slice(0, 11);
+});
+
+
+$("compartilha").addEventListener("change", () => {
+  const ativo = $("compartilha").checked;
+  $("camposCompartilhado").classList.toggle("oculto", !ativo);
+
+  if (ativo) {
+    $("nomeCompartilhado").focus();
+  } else {
+    $("nomeCompartilhado").value = "";
+    $("cpfCompartilhado").value = "";
+  }
 });
 
 if (conferencia && conferencia.setor && Array.isArray(conferencia.itens)) {
