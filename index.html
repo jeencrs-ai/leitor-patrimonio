@@ -1,246 +1,90 @@
 <!DOCTYPE html>
 <html lang="pt-BR">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
-  <meta name="theme-color" content="#111827">
-  <title>Conferência Patrimonial</title>
-  <link rel="stylesheet" href="style.css?v=20260824-2">
-  <script src="https://unpkg.com/html5-qrcode"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<title>Conferência Patrimonial</title>
+<link rel="stylesheet" href="style.css?v=20260825-1">
+<script src="https://unpkg.com/html5-qrcode"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
-<body>
-<main class="app">
+<body><main class="app">
 
-  <!-- TELA 1: SETOR -->
-  <section id="telaSetor">
-    <div class="cabecalho-inicial">
-      <div class="icone">✓</div>
-      <h1>Conferência Patrimonial</h1>
-      <p>Informe o setor para começar.</p>
-    </div>
+<section id="telaSetor">
+<div class="cabecalho-inicial"><div class="icone">✓</div><h1>Conferência Patrimonial</h1><p>Informe o setor para começar.</p></div>
+<div class="campo"><label for="setor">Setor</label><input id="setor" type="text" placeholder="Ex.: GESAT" autocomplete="off"></div>
+<p id="erroSetor" class="erro"></p>
+<button id="btnEntrar" class="botao botao-principal botao-grande">ENTRAR NO SETOR</button>
+<div id="recuperarBox" class="alerta-recuperacao oculto">
+  <div class="alerta-recuperacao-icone">↻</div>
+  <div class="alerta-recuperacao-conteudo">
+    <strong>Conferência em andamento</strong>
+    <span id="recuperarInfo"></span>
+  </div>
+  <button id="btnContinuarSalva" class="botao botao-principal">CONTINUAR CONFERÊNCIA</button>
+</div>
+</section>
 
-    <div class="campo">
-      <label for="setor">Setor</label>
-      <input id="setor" type="text" placeholder="Ex.: GESAT" autocomplete="off">
-    </div>
+<section id="telaConferencia" class="oculto">
+<header class="topo"><div><span class="rotulo">SETOR</span><h2 id="nomeSetor">—</h2></div><div class="contador"><strong id="quantidadeTotal">0</strong><span>itens</span></div></header>
+<div class="resumo-conferencia"><div><span>POSTOS</span><strong id="quantidadePostos">0</strong></div><div><span>PATRIMÔNIOS</span><strong id="quantidadeTotalResumo">0</strong></div></div>
+<div id="listaPostos" class="lista-postos"></div>
+<div id="postosVazio" class="vazio"><div class="vazio-icone">👤</div><strong>Nenhum posto criado</strong><span>Comece criando o primeiro posto.</span></div>
+<div class="acoes"><button id="btnNovoPosto" class="botao botao-principal botao-grande">+ NOVO POSTO</button><button id="btnFinalizar" class="botao botao-secundario">FINALIZAR CONFERÊNCIA</button></div>
+</section>
 
-    <p id="erroSetor" class="erro"></p>
+<section id="telaPosto" class="oculto">
+<header class="topo-simples"><button id="btnVoltarPosto" class="voltar" type="button">←</button><div><span class="rotulo">NOVO POSTO</span><h2 id="numeroPosto">POSTO 01</h2></div></header>
+<div class="campo"><label for="nomeResponsavel">Responsável</label><input id="nomeResponsavel" type="text" placeholder="Nome do usuário" autocomplete="off"></div>
+<div class="campo"><label for="cpfResponsavel">CPF <small>opcional</small></label><input id="cpfResponsavel" type="text" inputmode="numeric" placeholder="CPF do usuário" autocomplete="off"></div>
+<p class="ajuda">O responsável será vinculado aos patrimônios deste posto.</p><p id="erroPosto" class="erro"></p>
+<button id="btnIniciarPosto" class="botao botao-principal botao-grande">INICIAR POSTO</button>
+</section>
 
-    <button id="btnEntrar" class="botao botao-principal">ENTRAR NO SETOR</button>
+<section id="telaPostoAtual" class="oculto">
+<header class="topo"><div><span class="rotulo" id="rotuloPosto">POSTO 01</span><h2 id="nomePostoResponsavel">—</h2><small id="cpfPostoResponsavel"></small></div><div class="contador"><strong id="quantidadePosto">0</strong><span>itens</span></div></header>
+<div id="listaPatrimonios" class="lista"></div>
+<div id="patrimoniosVazio" class="vazio"><div class="vazio-icone">📷</div><strong>Nenhuma plaqueta lida</strong><span>Comece pela primeira plaqueta.</span></div>
+<div class="acoes"><button id="btnLer" class="botao botao-principal botao-grande">📷 LER PLAQUETA</button><button id="btnDigitarPosto" class="botao botao-secundario">⌨️ DIGITAR CÓDIGO</button><button id="btnFinalizarPosto" class="botao botao-secundario">FINALIZAR POSTO</button></div>
+</section>
 
-    <div id="recuperarBox" class="recuperar oculto">
-      <strong>Conferência salva neste celular</strong>
-      <span id="recuperarInfo"></span>
-      <button id="btnContinuarSalva" class="botao botao-secundario">CONTINUAR CONFERÊNCIA</button>
-    </div>
-  </section>
+<section id="telaCamera" class="oculto">
+<header class="topo-simples"><button id="btnVoltarCamera" class="voltar" type="button">←</button><div><span class="rotulo">LEITURA</span><h2 id="setorCamera">—</h2></div></header>
+<div class="camera"><div id="reader"></div></div><p id="statusCamera" class="status">Aponte a câmera para o código de barras.</p>
+<button id="btnDigitar" class="botao botao-principal">⌨️ DIGITAR CÓDIGO</button><button id="btnCancelarCamera" class="botao botao-secundario">CANCELAR</button>
+</section>
 
-  <!-- TELA 2: SETOR / LISTA -->
-  <section id="telaSetorAtual" class="oculto">
-    <header class="topo">
-      <div>
-        <span class="rotulo">SETOR</span>
-        <h2 id="nomeSetor">—</h2>
-      </div>
-      <div class="contador">
-        <strong id="quantidade">0</strong>
-        <span>itens</span>
-      </div>
-    </header>
+<section id="telaManual" class="oculto">
+<header class="topo-simples"><button id="btnVoltarManual" class="voltar" type="button">←</button><div><span class="rotulo">DIGITAÇÃO MANUAL</span><h2>Informar plaqueta</h2></div></header>
+<div class="campo"><label for="codigoManual">Código da plaqueta</label><input id="codigoManual" type="text" inputmode="numeric" placeholder="Digite o código" autocomplete="off"></div>
+<p id="erroManual" class="erro"></p><button id="btnContinuarManual" class="botao botao-principal botao-grande">CONTINUAR</button>
+</section>
 
-    <div class="responsavel-card">
-      <div>
-        <span class="rotulo">USUÁRIO ATUAL</span>
-        <strong id="responsavelAtual">Não informado</strong>
-        <small id="cpfResponsavelAtual"></small>
-      </div>
-      <button id="btnTrocarResponsavel" class="botao-pequeno" type="button">TROCAR</button>
-    </div>
+<section id="telaDados" class="oculto">
+<header class="topo-simples"><button id="btnVoltarDados" class="voltar" type="button">←</button><div><span class="rotulo">NOVA PLAQUETA</span><h2>Confirmar dados</h2></div></header>
+<div class="cartao-plaqueta"><div><span>PLAQUETA</span><strong id="plaquetaLida">—</strong></div></div>
+<div class="campo"><label>Tipo do equipamento</label><div class="tipo-cards">
+<button id="tipoCpu" class="tipo-card selecionado" type="button"><span class="tipo-icone">🖥️</span><strong>CPU</strong><small>Computador</small></button>
+<button id="tipoMonitor" class="tipo-card" type="button"><span class="tipo-icone">🖵</span><strong>MONITOR</strong><small>Tela</small></button>
+</div><input id="tipoEquipamento" type="hidden" value="CPU"></div>
+<div class="campo"><label for="descricao">Descrição <small>opcional</small></label><input id="descricao" type="text" placeholder="Ex.: Computador Dell" autocomplete="off"></div>
+<label class="check-linha"><input id="compartilha" type="checkbox"><span>Este computador é compartilhado por outro usuário</span></label>
+<div id="camposCompartilhado" class="bloco-compartilhado oculto"><div class="titulo-compartilhado">Segundo usuário</div>
+<div class="campo"><label for="nomeCompartilhado">Nome do usuário</label><input id="nomeCompartilhado" type="text" autocomplete="off" placeholder="Nome do usuário"></div>
+<div class="campo"><label for="cpfCompartilhado">CPF <small>opcional</small></label><input id="cpfCompartilhado" type="text" inputmode="numeric" placeholder="CPF do usuário" autocomplete="off"></div></div>
+<div id="erroDados" class="alerta-erro oculto" role="alert"><span class="alerta-erro-icone">!</span><span id="erroDadosTexto"></span></div><button id="btnSalvar" class="botao botao-principal botao-grande">SALVAR PATRIMÔNIO</button>
+</section>
 
-    <div id="lista" class="lista"></div>
+<section id="telaFinalPosto" class="oculto final"><div class="icone-final">✓</div><h1>Posto finalizado</h1><p>Confira os dados antes de continuar.</p>
+<div class="resumo"><div><span>Posto</span><strong id="finalPosto">—</strong></div><div><span>Responsável</span><strong id="finalPostoResponsavel">—</strong></div><div><span>CPF</span><strong id="finalPostoCpf">—</strong></div><div><span>CPU</span><strong id="finalPostoCpu">0</strong></div><div><span>Monitores</span><strong id="finalPostoMonitores">0</strong></div><div><span>Total</span><strong id="finalPostoTotal">0</strong></div></div>
+<button id="btnNovoPostoDepois" class="botao botao-principal botao-grande">+ NOVO POSTO</button><button id="btnVoltarConferencia" class="botao botao-secundario">VOLTAR PARA A CONFERÊNCIA</button>
+</section>
 
-    <div id="listaVazia" class="vazio">
-      <div class="vazio-icone">📷</div>
-      <strong>Nenhuma plaqueta lida</strong>
-      <span>Comece pela primeira plaqueta.</span>
-    </div>
+<section id="telaFinal" class="oculto final"><div class="icone-final">✓</div><h1>Conferência finalizada</h1><p>Confira o resumo antes de compartilhar.</p>
+<div class="resumo"><div><span>Setor</span><strong id="finalSetor">—</strong></div><div><span>Postos</span><strong id="finalPostos">0</strong></div><div><span>Patrimônios</span><strong id="finalQuantidade">0</strong></div></div>
+<button id="btnWhatsApp" class="botao botao-principal botao-grande">📱 ENVIAR TEXTO PELO WHATSAPP</button><button id="btnCompartilhar" class="botao botao-secundario botao-grande">📊 GERAR / COMPARTILHAR EXCEL</button>
+<p id="statusCompartilhar" class="status"></p><button id="btnNova" class="botao botao-perigo">NOVA CONFERÊNCIA</button><button id="btnManter" class="botao botao-secundario">VOLTAR PARA A CONFERÊNCIA</button>
+</section>
 
-    <div class="acoes">
-      <button id="btnLer" class="botao botao-principal botao-grande">
-        📷 LER PLAQUETA
-      </button>
-      <button id="btnFinalizar" class="botao botao-secundario">
-        FINALIZAR CONFERÊNCIA
-      </button>
-    </div>
-  </section>
-
-  <section id="telaResponsavel" class="oculto">
-    <header class="topo-simples">
-      <button id="btnVoltarResponsavel" class="voltar">←</button>
-      <div><span class="rotulo">RESPONSÁVEL</span><h2>Usuário atual</h2></div>
-    </header>
-    <div class="campo"><label for="nomeResponsavel">Nome</label><input id="nomeResponsavel" type="text" placeholder="Nome do usuário" autocomplete="off"></div>
-    <div class="campo"><label for="cpfResponsavel">CPF</label><input id="cpfResponsavel" type="text" inputmode="numeric" placeholder="CPF do usuário" autocomplete="off"></div>
-    <p id="erroResponsavel" class="erro"></p>
-    <button id="btnSalvarResponsavel" class="botao botao-principal botao-grande">USAR ESTE USUÁRIO</button>
-  </section>
-
-  <!-- TELA 3: CÂMERA -->
-  <section id="telaCamera" class="oculto">
-    <header class="topo-simples">
-      <button id="btnVoltarCamera" class="voltar">←</button>
-      <div>
-        <span class="rotulo">SETOR</span>
-        <h2 id="setorCamera">—</h2>
-      </div>
-    </header>
-
-    <div class="camera">
-      <div id="reader"></div>
-    </div>
-
-    <p id="statusCamera" class="status">
-      Aponte a câmera para o código de barras.
-    </p>
-
-    <button id="btnDigitar" class="botao botao-principal">
-      ⌨️ DIGITAR CÓDIGO
-    </button>
-
-    <button id="btnCancelarCamera" class="botao botao-secundario">
-      CANCELAR
-    </button>
-  </section>
-
-  <!-- TELA 4: DIGITAÇÃO MANUAL -->
-  <section id="telaManual" class="oculto">
-    <header class="topo-simples">
-      <button id="btnVoltarManual" class="voltar">←</button>
-      <div>
-        <span class="rotulo">DIGITAÇÃO MANUAL</span>
-        <h2>Informar plaqueta</h2>
-      </div>
-    </header>
-
-    <div class="campo">
-      <label for="codigoManual">Código da plaqueta</label>
-      <input id="codigoManual" type="text" inputmode="numeric"
-             placeholder="Digite o código" autocomplete="off">
-    </div>
-
-    <p id="erroManual" class="erro"></p>
-
-    <button id="btnContinuarManual" class="botao botao-principal botao-grande">
-      CONTINUAR
-    </button>
-  </section>
-
-  <!-- TELA 4: DADOS DA PLAQUETA -->
-  <section id="telaDados" class="oculto">
-    <header class="topo-simples">
-      <button id="btnVoltarDados" class="voltar">←</button>
-      <div>
-        <span class="rotulo">NOVA PLAQUETA</span>
-        <h2>Confirmar dados</h2>
-      </div>
-    </header>
-
-    <div class="cartao-plaqueta">
-      <div class="plaqueta-linha">
-        <div>
-          <span>PLAQUETA</span>
-          <strong id="plaquetaLida">—</strong>
-        </div>
-
-        <div class="tipo-select">
-          <label for="tipoEquipamento">TIPO</label>
-          <select id="tipoEquipamento">
-            <option value="CPU">CPU</option>
-            <option value="MONITOR">MONITOR</option>
-          </select>
-        </div>
-      </div>
-    </div>
-
-    <div class="campo">
-      <label for="descricao">Descrição <small>opcional</small></label>
-      <input id="descricao" type="text" placeholder="Ex.: Computador Dell" autocomplete="off">
-    </div>
-
-    <div class="campo">
-      <label for="nomeUsuario">Usuário <small>opcional</small></label>
-      <input id="nomeUsuario" type="text" autocomplete="off" placeholder="Nome do usuário">
-    </div>
-
-    <div class="campo">
-      <label for="cpf">CPF <small>opcional</small></label>
-      <input id="cpf" type="text" inputmode="numeric" placeholder="CPF do usuário" autocomplete="off">
-    </div>
-
-    <label class="check-linha">
-      <input id="compartilha" type="checkbox">
-      <span>Este computador é compartilhado por outro usuário</span>
-    </label>
-
-    <div id="camposCompartilhado" class="bloco-compartilhado oculto">
-      <div class="titulo-compartilhado">Segundo usuário</div>
-
-      <div class="campo">
-        <label for="nomeCompartilhado">Nome do usuário</label>
-        <input id="nomeCompartilhado" type="text" autocomplete="off" placeholder="Nome do usuário">
-      </div>
-
-      <div class="campo">
-        <label for="cpfCompartilhado">CPF do usuário</label>
-        <input id="cpfCompartilhado" type="text" inputmode="numeric" placeholder="CPF do usuário" autocomplete="off">
-      </div>
-    </div>
-
-    <p id="erroDados" class="erro"></p>
-
-    <button id="btnSalvar" class="botao botao-principal botao-grande">
-      SALVAR PATRIMÔNIO
-    </button>
-  </section>
-
-  <!-- TELA 5: FINALIZAÇÃO -->
-  <section id="telaFinal" class="oculto final">
-    <div class="icone-final">✓</div>
-    <h1>Conferência finalizada</h1>
-    <p>Confira o resumo antes de compartilhar.</p>
-
-    <div class="resumo">
-      <div><span>Setor</span><strong id="finalSetor">—</strong></div>
-      <div><span>Responsável</span><strong id="finalResponsavel">—</strong></div>
-      <div>
-        <span>Patrimônios</span>
-        <strong id="finalQuantidade">0</strong>
-      </div>
-    </div>
-
-    <button id="btnWhatsApp" class="botao botao-principal botao-grande">
-      📱 ENVIAR TEXTO PELO WHATSAPP
-    </button>
-
-    <button id="btnCompartilhar" class="botao botao-secundario botao-grande">
-      📊 GERAR / COMPARTILHAR EXCEL
-    </button>
-
-    <p id="statusCompartilhar" class="status"></p>
-
-    <button id="btnNova" class="botao botao-perigo">
-      NOVA CONFERÊNCIA
-    </button>
-
-    <button id="btnManter" class="botao botao-secundario">
-      VOLTAR PARA A CONFERÊNCIA
-    </button>
-  </section>
-
-</main>
-
-<script src="app.js"></script>
-</body>
-</html>
+</main><script src="app.js"></script></body></html>
