@@ -63,7 +63,13 @@
 
 <section id="telaDados" class="oculto">
 <header class="topo-simples"><button id="btnVoltarDados" class="voltar" type="button">←</button><div><span class="rotulo">NOVA PLAQUETA</span><h2>Confirmar dados</h2></div></header>
-<div class="cartao-plaqueta"><div><span>PLAQUETA</span><strong id="plaquetaLida">—</strong></div></div>
+<div class="cartao-plaqueta">
+  <div>
+    <span>PLAQUETA</span>
+    <strong id="plaquetaLida">—</strong>
+    <input id="plaquetaEditavel" class="input-plaqueta-edicao oculto" type="text" inputmode="numeric" autocomplete="off" aria-label="Código da plaqueta">
+  </div>
+</div>
 <div class="campo"><label>Tipo do equipamento</label><div class="tipo-cards">
 <button id="tipoCpu" class="tipo-card selecionado" type="button"><span class="tipo-icone">🖥️</span><strong>CPU</strong><small>Computador</small></button>
 <button id="tipoMonitor" class="tipo-card" type="button"><span class="tipo-icone">🖵</span><strong>MONITOR</strong><small>Tela</small></button>
