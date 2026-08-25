@@ -522,3 +522,35 @@ h1, h2, p { margin-top: 0; }
 .input-plaqueta-edicao:focus{
   box-shadow:0 0 0 3px rgba(17,24,39,.12);
 }
+
+/* Estado visual do posto finalizado */
+.posto-card .abrir-posto{
+  font-weight:800;
+}
+
+.posto-acoes{
+  display:grid;
+  grid-template-columns:1fr 1fr;
+  gap:8px;
+  margin-top:10px;
+}
+.posto-acoes .botao{
+  min-height:48px;
+  font-size:13px;
+}
+.botao-editar-posto{
+  width:100%;
+  min-height:48px;
+  padding:10px 12px;
+  border:0;
+  border-radius:12px;
+  background:#111827;
+  color:#fff;
+  font:inherit;
+  font-weight:800;
+  cursor:pointer;
+}
+.botao-editar-posto:active{transform:scale(.99)}
+@media(max-width:380px){
+  .posto-acoes{grid-template-columns:1fr}
+}
