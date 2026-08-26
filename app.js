@@ -11,12 +11,14 @@ function entrar(){const s=$("setor").value.trim();if(!s){$("erroSetor").textCont
 function mostrarRecuperacao(){if(!conferencia)return;$("recuperarInfo").textContent=`Setor: ${conferencia.setor} • ${conferencia.postos.length} posto(s) • ${total()} patrimônio(s) registrado(s).`;$("recuperarBox").classList.remove("oculto")}
 function renderConferencia(){if(!conferencia)return;$("nomeSetor").textContent=conferencia.setor;$("quantidadeTotal").textContent=total();$("quantidadeTotalResumo").textContent=total();$("quantidadePostos").textContent=conferencia.postos.length;const l=$("listaPostos");l.innerHTML="";$("postosVazio").classList.toggle("oculto",conferencia.postos.length!==0);[...conferencia.postos].reverse().forEach(p=>{const cpu=p.itens.filter(x=>x.tipoEquipamento==="CPU").length,mon=p.itens.filter(x=>x.tipoEquipamento==="MONITOR").length,d=document.createElement("article");d.className="posto-card";d.innerHTML=`<div class="posto-cabecalho"><div><span class="rotulo">POSTO ${String(p.numero).padStart(2,"0")}</span><h3>${esc(p.responsavel.nome||"Sem responsável")}</h3><small>${p.responsavel.cpf?`CPF: ${esc(p.responsavel.cpf)}`:"CPF não informado"}</small></div><strong class="posto-total">${p.itens.length}</strong></div><div class="posto-resumo"><span>CPU: ${cpu}</span><span>MONITORES: ${mon}</span></div><div class="posto-acoes">
   <button class="botao botao-secundario abrir-posto" type="button">${p.finalizadoEm?"VISUALIZAR POSTO":"ABRIR POSTO"}</button>
-  ${p.finalizadoEm?'<button class="botao botao-editar-posto" type="button">EDITAR POSTO</button>':""}
+  ${p.finalizadoEm?'<button class="botao botao-editar-posto" type="button">EDITAR POSTO</button>':""}${!p.itens.length?'<button class="botao botao-remover-posto" type="button" data-posto-vazio="' + p.id + '">EXCLUIR POSTO VAZIO</button>':""}
   ${!p.itens.length?'<button class="botao botao-remover-posto" type="button">EXCLUIR POSTO VAZIO</button>':""}
 </div>`; 
 d.querySelector(".abrir-posto").onclick=()=>visualizarPosto(p.id);
 const editarBtn=d.querySelector(".botao-editar-posto");
 if(editarBtn) editarBtn.onclick=()=>abrirPosto(p.id);
+const removerBtn=d.querySelector(".botao-remover-posto");
+if(removerBtn) removerBtn.onclick=()=>excluirPostoVazio(p.id);
 const removerBtn=d.querySelector(".botao-remover-posto");
 if(removerBtn) removerBtn.onclick=()=>excluirPostoVazio(p.id);l.appendChild(d)})}
 function novoPosto(){ $("numeroPosto").textContent=`POSTO ${String(conferencia.postos.length+1).padStart(2,"0")}`;$("nomeResponsavel").value="";$("cpfResponsavel").value="";$("erroPosto").textContent="";tela("telaPosto");setTimeout(()=>$("nomeResponsavel").focus(),80)}
