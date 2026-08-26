@@ -557,3 +557,24 @@ h1, h2, p { margin-top: 0; }
 
 /* ===== POSTO VAZIO E VISUALIZAÇÃO ===== */
 .posto-acoes{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.posto-acoes .botao,.posto-acoes .botao-remover-posto{min-height:48px;font-size:13px}.botao-remover-posto{grid-column:1/-1;width:100%;min-height:48px;padding:10px 12px;border:1px solid #fecaca;border-radius:12px;background:#fff;color:#b91c1c;font:inherit;font-weight:800;cursor:pointer}.botao-remover-posto:active{transform:scale(.99)}.lista-final-titulo{margin:22px 0 9px;color:#6b7280;font-size:11px;font-weight:800;letter-spacing:.08em;text-align:left}.lista-final-postos{text-align:left;max-height:45vh;overflow:auto}@media(max-width:380px){.posto-acoes{grid-template-columns:1fr}}
+
+/* ===== AÇÃO EXCLUSIVA PARA POSTO VAZIO ===== */
+.posto-acoes .botao-remover-posto{
+  grid-column:1 / -1;
+  width:100%;
+  min-height:48px;
+  margin-top:2px;
+  padding:10px 12px;
+  border:1px solid #fecaca;
+  border-radius:12px;
+  background:#fff7f7;
+  color:#b91c1c;
+  font:inherit;
+  font-size:13px;
+  font-weight:800;
+  cursor:pointer;
+}
+.posto-acoes .botao-remover-posto:active{
+  transform:scale(.99);
+  background:#fee2e2;
+}
