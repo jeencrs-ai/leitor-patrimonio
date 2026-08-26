@@ -12,12 +12,25 @@ function mostrarRecuperacao(){if(!conferencia)return;$("recuperarInfo").textCont
 function renderConferencia(){if(!conferencia)return;$("nomeSetor").textContent=conferencia.setor;$("quantidadeTotal").textContent=total();$("quantidadeTotalResumo").textContent=total();$("quantidadePostos").textContent=conferencia.postos.length;const l=$("listaPostos");l.innerHTML="";$("postosVazio").classList.toggle("oculto",conferencia.postos.length!==0);[...conferencia.postos].reverse().forEach(p=>{const cpu=p.itens.filter(x=>x.tipoEquipamento==="CPU").length,mon=p.itens.filter(x=>x.tipoEquipamento==="MONITOR").length,d=document.createElement("article");d.className="posto-card";d.innerHTML=`<div class="posto-cabecalho"><div><span class="rotulo">POSTO ${String(p.numero).padStart(2,"0")}</span><h3>${esc(p.responsavel.nome||"Sem responsável")}</h3><small>${p.responsavel.cpf?`CPF: ${esc(p.responsavel.cpf)}`:"CPF não informado"}</small></div><strong class="posto-total">${p.itens.length}</strong></div><div class="posto-resumo"><span>CPU: ${cpu}</span><span>MONITORES: ${mon}</span></div><div class="posto-acoes">
   <button class="botao botao-secundario abrir-posto" type="button">${p.finalizadoEm?"VISUALIZAR POSTO":"ABRIR POSTO"}</button>
   ${p.finalizadoEm?'<button class="botao botao-editar-posto" type="button">EDITAR POSTO</button>':""}
+  ${!p.itens.length?'<button class="botao botao-remover-posto" type="button">EXCLUIR POSTO VAZIO</button>':""}
 </div>`; 
 d.querySelector(".abrir-posto").onclick=()=>visualizarPosto(p.id);
 const editarBtn=d.querySelector(".botao-editar-posto");
-if(editarBtn) editarBtn.onclick=()=>abrirPosto(p.id);l.appendChild(d)})}
+if(editarBtn) editarBtn.onclick=()=>abrirPosto(p.id);
+const removerBtn=d.querySelector(".botao-remover-posto");
+if(removerBtn) removerBtn.onclick=()=>excluirPostoVazio(p.id);l.appendChild(d)})}
 function novoPosto(){ $("numeroPosto").textContent=`POSTO ${String(conferencia.postos.length+1).padStart(2,"0")}`;$("nomeResponsavel").value="";$("cpfResponsavel").value="";$("erroPosto").textContent="";tela("telaPosto");setTimeout(()=>$("nomeResponsavel").focus(),80)}
 function iniciarPosto(){const nome=$("nomeResponsavel").value.trim(),cpf=$("cpfResponsavel").value.replace(/\D/g,"").slice(0,11);if(!nome){$("erroPosto").textContent="Informe o nome do responsável.";return}const p={id:novoId("posto"),numero:conferencia.postos.length+1,responsavel:{nome,cpf},criadoEm:new Date().toISOString(),finalizadoEm:null,itens:[]};conferencia.postos.push(p);postoAtualId=p.id;salvarLocal();renderPosto();tela("telaPostoAtual")}
+function excluirPostoVazio(id){
+  const p=conferencia.postos.find(x=>x.id===id);
+  if(!p || p.itens.length)return;
+  if(!confirm(`Excluir o POSTO ${String(p.numero).padStart(2,"0")} vazio?\n\nNenhum patrimônio dos outros postos será alterado.`))return;
+  conferencia.postos=conferencia.postos.filter(x=>x.id!==id);
+  conferencia.postos.forEach((x,i)=>x.numero=i+1);
+  salvarLocal();
+  renderConferencia();
+}
+
 function visualizarPosto(id){
   const p=conferencia.postos.find(x=>x.id===id);
   if(!p)return;
@@ -27,10 +40,16 @@ function visualizarPosto(id){
   $("finalPostoCpu").textContent=p.itens.filter(x=>x.tipoEquipamento==="CPU").length;
   $("finalPostoMonitores").textContent=p.itens.filter(x=>x.tipoEquipamento==="MONITOR").length;
   $("finalPostoTotal").textContent=p.itens.length;
-  $("btnNovoPostoDepois").classList.add("oculto");
-  $("btnVoltarConferencia").textContent="VOLTAR PARA A CONFERÊNCIA";
-  tela("telaFinalPosto");
+  const lista=$("listaFinalPosto");
+  lista.innerHTML="";
+  p.itens.forEach((x,i)=>{
+    const d=document.createElement("article");d.className="item";
+    d.innerHTML=`<div class="item-cabecalho"><div><div class="item-numero">#${String(i+1).padStart(2,"0")}</div><div class="item-plaqueta">${esc(x.plaqueta)}</div></div></div><div class="item-cpf">Tipo: ${esc(x.tipoEquipamento||"CPU")}</div>${x.descricao?`<div class="item-descricao">${esc(x.descricao)}</div>`:""}${x.compartilha?`<div class="item-cpf">Compartilhado com: ${esc(x.nomeCompartilhado||"—")}${x.cpfCompartilhado?` • CPF: ${esc(x.cpfCompartilhado)}`:""}</div>`:""}`;
+    lista.appendChild(d);
+  });
+  $("btnNovoPostoDepois").classList.add("oculto");$("btnVoltarConferencia").textContent="VOLTAR PARA A CONFERÊNCIA";tela("telaFinalPosto");
 }
+
 function abrirPosto(id){
   const p=conferencia.postos.find(x=>x.id===id);
   if(!p)return;
@@ -67,7 +86,16 @@ function salvarPatrimonio(){const p=posto();if(!p)return;const editando=$("btnSa
 function finalizarPosto(){
   $("btnNovoPostoDepois").classList.remove("oculto");
 const p=posto();if(!p)return;if(!p.itens.length){alert("Nenhuma plaqueta foi registrada neste posto.");return}if(!p.itens.some(x=>x.tipoEquipamento==="CPU")&&!confirm("Este posto não possui CPU. Deseja finalizá-lo mesmo assim?"))return;p.finalizadoEm=new Date().toISOString();salvarLocal();$("finalPosto").textContent=`POSTO ${String(p.numero).padStart(2,"0")}`;$("finalPostoResponsavel").textContent=p.responsavel.nome;$("finalPostoCpf").textContent=p.responsavel.cpf||"Não informado";$("finalPostoCpu").textContent=p.itens.filter(x=>x.tipoEquipamento==="CPU").length;$("finalPostoMonitores").textContent=p.itens.filter(x=>x.tipoEquipamento==="MONITOR").length;$("finalPostoTotal").textContent=p.itens.length;tela("telaFinalPosto")}
-function finalizar(){if(!conferencia.postos.length){alert("Nenhum posto foi criado.");return}if(conferencia.postos.some(p=>!p.itens.length)){alert("Existe posto sem patrimônio. Corrija antes de encerrar.");return}conferencia.status="FINALIZADA";conferencia.finalizadoEm=new Date().toISOString();salvarLocal();$("finalSetor").textContent=conferencia.setor;$("finalPostos").textContent=conferencia.postos.length;$("finalQuantidade").textContent=total();tela("telaFinal")}
+function finalizar(){if(!conferencia.postos.length){alert("Nenhum posto foi criado.");return}const vazios=conferencia.postos.filter(p=>!p.itens.length);
+if(vazios.length){
+  const nomes=vazios.map(p=>`POSTO ${String(p.numero).padStart(2,"0")}`).join(", ");
+  const ok=confirm(`${nomes} ${vazios.length===1?"está":"estão"} sem patrimônio.\n\nDeseja excluir ${vazios.length===1?"este posto vazio":"estes postos vazios"} e finalizar a conferência?`);
+  if(!ok)return;
+  conferencia.postos=conferencia.postos.filter(p=>p.itens.length);
+  conferencia.postos.forEach((p,i)=>p.numero=i+1);
+  if(!conferencia.postos.length){alert("Não há nenhum posto com patrimônio para finalizar.");salvarLocal();renderConferencia();return;}
+  salvarLocal();
+}conferencia.status="FINALIZADA";conferencia.finalizadoEm=new Date().toISOString();salvarLocal();$("finalSetor").textContent=conferencia.setor;$("finalPostos").textContent=conferencia.postos.length;$("finalQuantidade").textContent=total();tela("telaFinal")}
 function texto(){const a=["CONFERÊNCIA PATRIMONIAL",`Setor: ${conferencia.setor}`,`Postos: ${conferencia.postos.length}`,`Total: ${total()}`,""];conferencia.postos.forEach(p=>{a.push(`POSTO ${String(p.numero).padStart(2,"0")}`,`Responsável: ${p.responsavel.nome}`,`CPF: ${p.responsavel.cpf||"Não informado"}`,"");p.itens.forEach((x,i)=>{a.push(`${i+1}. Plaqueta: ${x.plaqueta}`,`Tipo: ${x.tipoEquipamento}`,`Descrição: ${x.descricao||"—"}`);if(x.compartilha)a.push(`Compartilhado com: ${x.nomeCompartilhado}`,`CPF: ${x.cpfCompartilhado||"Não informado"}`);a.push("")})});return a.join("\n")}
 function whatsapp(){open(`https://wa.me/?text=${encodeURIComponent(texto())}`,"_blank")}
 function excel(){const s=conferencia.setor.normalize("NFD").replace(/[\u0300-\u036f]/g,"").replace(/[^a-zA-Z0-9]+/g,"_").replace(/^_+|_+$/g,""),rows=[["CONFERÊNCIA PATRIMONIAL"],["Setor",conferencia.setor],["Postos",conferencia.postos.length],["Total",total()],[],["Posto","Responsável","CPF","Plaqueta","Tipo","Descrição","Compartilhado","2º Usuário","CPF 2º Usuário","Data/Hora"]];conferencia.postos.forEach(p=>p.itens.forEach(x=>rows.push([String(p.numero).padStart(2,"0"),p.responsavel.nome,p.responsavel.cpf,x.plaqueta,x.tipoEquipamento,x.descricao||"",x.compartilha?"SIM":"NÃO",x.nomeCompartilhado||"",x.cpfCompartilhado||"",new Date(x.dataHora).toLocaleString("pt-BR")])));const ws=XLSX.utils.aoa_to_sheet(rows);const wb=XLSX.utils.book_new();XLSX.utils.book_append_sheet(wb,ws,"Conferência");const b=new Blob([XLSX.write(wb,{bookType:"xlsx",type:"array"})],{type:"application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"}),f=new File([b],`conferencia_${s||"setor"}_${new Date().toISOString().slice(0,10)}.xlsx`,{type:b.type});return f}
