@@ -1,0 +1,608 @@
+<!doctype html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <meta name="theme-color" content="#111827">
+
+  <title>Recuperar Conferência</title>
+
+  <style>
+    * {
+      box-sizing: border-box;
+    }
+
+    body {
+      margin: 0;
+      background: #f3f4f6;
+      color: #111827;
+      font-family: Arial, Helvetica, sans-serif;
+      padding: 18px;
+    }
+
+    .app {
+      max-width: 560px;
+      margin: auto;
+    }
+
+    .card {
+      background: #fff;
+      border: 1px solid #e5e7eb;
+      border-radius: 16px;
+      padding: 18px;
+    }
+
+    h1 {
+      font-size: 23px;
+      margin: 0 0 6px;
+    }
+
+    .sub {
+      color: #6b7280;
+    }
+
+    .info {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 8px;
+      margin: 15px 0;
+    }
+
+    .info div {
+      padding: 12px;
+      background: #f9fafb;
+      border: 1px solid #e5e7eb;
+      border-radius: 10px;
+    }
+
+    .info span {
+      display: block;
+      color: #6b7280;
+      font-size: 10px;
+      font-weight: bold;
+    }
+
+    .info strong {
+      font-size: 19px;
+    }
+
+    .posto {
+      margin-top: 10px;
+      padding: 12px;
+      border: 1px solid #e5e7eb;
+      border-radius: 12px;
+    }
+
+    .item {
+      padding: 8px 0;
+      border-top: 1px solid #eee;
+      font-size: 13px;
+    }
+
+    button {
+      width: 100%;
+      min-height: 55px;
+      margin-top: 10px;
+      border: 0;
+      border-radius: 12px;
+      font-weight: 800;
+      font-size: 16px;
+      cursor: pointer;
+      background: #111827;
+      color: #fff;
+    }
+
+    .whats {
+      background: #166534;
+    }
+
+    .backup {
+      background: #fff;
+      color: #111827;
+      border: 1px solid #d1d5db;
+    }
+
+    .erro {
+      margin-top: 12px;
+      padding: 12px;
+      background: #fef2f2;
+      color: #991b1b;
+      border-radius: 10px;
+      font-weight: bold;
+    }
+
+    .ok {
+      margin-top: 12px;
+      padding: 12px;
+      background: #ecfdf5;
+      color: #166534;
+      border-radius: 10px;
+      font-weight: bold;
+    }
+
+    @media (max-width: 380px) {
+      .info {
+        grid-template-columns: 1fr;
+      }
+    }
+  </style>
+</head>
+
+<body>
+
+<main class="app">
+
+  <div class="card">
+
+    <h1>Recuperar conferência</h1>
+
+    <p class="sub">
+      Esta página apenas lê os dados salvos neste celular.
+      Ela não altera nem exclui a conferência.
+    </p>
+
+    <div id="app"></div>
+
+  </div>
+
+</main>
+
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+
+<script>
+
+const CHAVE = "conferencia_patrimonial_v6";
+
+
+function esc(valor) {
+
+  return String(valor ?? "")
+    .replace(/[&<>"']/g, m => ({
+      "&": "&amp;",
+      "<": "&lt;",
+      ">": "&gt;",
+      '"': "&quot;",
+      "'": "&#39;"
+    }[m]));
+
+}
+
+
+function ler() {
+
+  try {
+
+    const dados = localStorage.getItem(CHAVE);
+
+    return dados ? JSON.parse(dados) : null;
+
+  } catch (erro) {
+
+    return null;
+
+  }
+
+}
+
+
+function montar() {
+
+  const conferencia = ler();
+
+  const app = document.getElementById("app");
+
+
+  if (!conferencia) {
+
+    app.innerHTML = `
+      <div class="erro">
+        Nenhuma conferência encontrada neste navegador.
+      </div>
+    `;
+
+    return;
+  }
+
+
+  /*
+   * IMPORTANTE:
+   * O posto vazio é ignorado.
+   * Nenhum dado dos outros postos é alterado.
+   */
+
+  const postos = (conferencia.postos || [])
+    .filter(p => (p.itens || []).length > 0);
+
+
+  const itens = postos.flatMap(p => p.itens || []);
+
+
+  let html = `
+
+    <div class="info">
+
+      <div>
+        <span>SETOR</span>
+        <strong>
+          ${esc(conferencia.setor || "—")}
+        </strong>
+      </div>
+
+      <div>
+        <span>PATRIMÔNIOS</span>
+        <strong>
+          ${itens.length}
+        </strong>
+      </div>
+
+      <div>
+        <span>POSTOS</span>
+        <strong>
+          ${postos.length}
+        </strong>
+      </div>
+
+    </div>
+
+  `;
+
+
+  postos.forEach(p => {
+
+    html += `
+
+      <div class="posto">
+
+        <b>
+          POSTO ${String(p.numero).padStart(2, "0")}
+        </b>
+
+        <br>
+
+        <small>
+          ${esc(
+            p.responsavel?.nome ||
+            "Sem responsável"
+          )}
+        </small>
+
+    `;
+
+
+    (p.itens || []).forEach(item => {
+
+      html += `
+
+        <div class="item">
+
+          <b>
+            ${esc(item.plaqueta)}
+          </b>
+
+          —
+          ${esc(item.tipoEquipamento || "CPU")}
+
+          ${
+            item.descricao
+              ? " — " + esc(item.descricao)
+              : ""
+          }
+
+        </div>
+
+      `;
+
+    });
+
+
+    html += `</div>`;
+
+  });
+
+
+  html += `
+
+    <button onclick="gerarExcel()">
+      📊 GERAR EXCEL
+    </button>
+
+    <button
+      class="whats"
+      onclick="enviarWhatsApp()">
+      📱 ENVIAR PELO WHATSAPP
+    </button>
+
+    <button
+      class="backup"
+      onclick="salvarBackup()">
+      💾 SALVAR BACKUP JSON
+    </button>
+
+    <div id="mensagem"></div>
+
+  `;
+
+
+  app.innerHTML = html;
+
+}
+
+
+function gerarLinhasExcel() {
+
+  const conferencia = ler();
+
+  const linhas = [
+
+    [
+      "SETOR",
+      "POSTO",
+      "RESPONSÁVEL",
+      "CPF",
+      "PLAQUETA",
+      "TIPO",
+      "DESCRIÇÃO"
+    ]
+
+  ];
+
+
+  (conferencia.postos || [])
+
+    .filter(p => (p.itens || []).length > 0)
+
+    .forEach(p => {
+
+      (p.itens || []).forEach(item => {
+
+        linhas.push([
+
+          conferencia.setor || "",
+
+          String(p.numero).padStart(2, "0"),
+
+          p.responsavel?.nome || "",
+
+          p.responsavel?.cpf || "",
+
+          item.plaqueta || "",
+
+          item.tipoEquipamento || "",
+
+          item.descricao || ""
+
+        ]);
+
+      });
+
+    });
+
+
+  return linhas;
+
+}
+
+
+function gerarExcel() {
+
+  const conferencia = ler();
+
+
+  if (!conferencia) {
+
+    alert("Nenhuma conferência encontrada.");
+
+    return;
+
+  }
+
+
+  if (typeof XLSX === "undefined") {
+
+    alert("A biblioteca do Excel não carregou.");
+
+    return;
+
+  }
+
+
+  const workbook = XLSX.utils.book_new();
+
+
+  const worksheet =
+    XLSX.utils.aoa_to_sheet(
+      gerarLinhasExcel()
+    );
+
+
+  XLSX.utils.book_append_sheet(
+    workbook,
+    worksheet,
+    "Patrimônios"
+  );
+
+
+  const setor =
+    String(conferencia.setor || "setor")
+      .replace(/\s+/g, "_");
+
+
+  XLSX.writeFile(
+    workbook,
+    `conferencia_${setor}.xlsx`
+  );
+
+
+  mostrarMensagem("Excel gerado com sucesso.");
+
+}
+
+
+function gerarTextoWhatsApp() {
+
+  const conferencia = ler();
+
+  let texto =
+    "CONFERÊNCIA PATRIMONIAL\n" +
+    "SETOR: " +
+    (conferencia.setor || "—") +
+    "\n\n";
+
+
+  (conferencia.postos || [])
+
+    .filter(p => (p.itens || []).length > 0)
+
+    .forEach(p => {
+
+      texto +=
+        "POSTO " +
+        String(p.numero).padStart(2, "0") +
+        "\n";
+
+
+      texto +=
+        "Responsável: " +
+        (p.responsavel?.nome || "—") +
+        "\n";
+
+
+      if (p.responsavel?.cpf) {
+
+        texto +=
+          "CPF: " +
+          p.responsavel.cpf +
+          "\n";
+
+      }
+
+
+      (p.itens || []).forEach(item => {
+
+        texto +=
+          item.plaqueta +
+          " — " +
+          (item.tipoEquipamento || "CPU");
+
+
+        if (item.descricao) {
+
+          texto +=
+            " — " +
+            item.descricao;
+
+        }
+
+
+        texto += "\n";
+
+      });
+
+
+      texto += "\n";
+
+    });
+
+
+  return texto;
+
+}
+
+
+function enviarWhatsApp() {
+
+  const texto =
+    gerarTextoWhatsApp();
+
+
+  const url =
+    "https://wa.me/?text=" +
+    encodeURIComponent(texto);
+
+
+  window.location.href = url;
+
+}
+
+
+function salvarBackup() {
+
+  const conferencia = ler();
+
+
+  if (!conferencia) {
+
+    alert(
+      "Nenhuma conferência encontrada."
+    );
+
+    return;
+
+  }
+
+
+  const arquivo = new Blob(
+
+    [
+      JSON.stringify(
+        conferencia,
+        null,
+        2
+      )
+    ],
+
+    {
+      type: "application/json"
+    }
+
+  );
+
+
+  const url =
+    URL.createObjectURL(arquivo);
+
+
+  const link =
+    document.createElement("a");
+
+
+  link.href = url;
+
+  link.download =
+    "backup_conferencia.json";
+
+
+  link.click();
+
+
+  URL.revokeObjectURL(url);
+
+
+  mostrarMensagem(
+    "Backup JSON salvo com sucesso."
+  );
+
+}
+
+
+function mostrarMensagem(texto) {
+
+  const elemento =
+    document.getElementById(
+      "mensagem"
+    );
+
+
+  elemento.className = "ok";
+
+  elemento.textContent = texto;
+
+}
+
+
+montar();
+
+</script>
+
+</body>
+</html>
