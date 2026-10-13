@@ -5,7 +5,7 @@
 <meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
 <meta name="theme-color" content="#111827">
 <title>Conferência Patrimonial</title>
-<link rel="stylesheet" href="style.css?v=20261013-8">
+<link rel="stylesheet" href="style.css?v=20261013-9">
 <script src="https://unpkg.com/html5-qrcode"></script>
 <script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
 </head>
@@ -48,9 +48,9 @@
     <header class="topo-simples"><button id="btnVoltarLeitura" class="voltar" type="button" aria-label="Voltar">←</button><div><span class="rotulo" id="rotuloLeitura">LEITURA</span><h2 id="tituloLeitura">—</h2></div></header>
     <p class="leitura-ajuda" id="ajudaLeitura">Aponte a câmera para a plaqueta. Cada leitura é salva automaticamente.</p>
     <div class="camera"><div id="reader"></div></div>
+    <div class="leitura-recente" aria-live="assertive" aria-atomic="true"><span>ÚLTIMA LEITURA</span><strong id="ultimaPlaqueta">—</strong><small id="confirmacaoLeitura"></small></div>
     <p id="statusCamera" class="status" role="status">Preparando leitor…</p>
     <div class="manual-rapido"><label for="codigoManual">Se a câmera não conseguir ler, digite o código</label><div><input id="codigoManual" type="text" autocomplete="off" placeholder="Código da plaqueta"><button id="btnSalvarManual" type="button">SALVAR</button></div></div>
-    <div class="leitura-recente" aria-live="polite"><span>ÚLTIMA LEITURA</span><strong id="ultimaPlaqueta">—</strong><small id="confirmacaoLeitura"></small></div>
     <section class="lista-leitura">
       <div class="lista-leitura-cabecalho"><h3>Plaquetas desta etapa</h3><strong id="quantidadeListaLeitura">0 lidas</strong></div>
       <p id="listaLeituraVazia" class="lista-leitura-vazia">As plaquetas salvas aparecerão aqui.</p>
@@ -182,4 +182,4 @@
 <p id="statusCompartilhar" class="status"></p><button id="btnNova" class="botao botao-perigo">NOVA CONFERÊNCIA</button><button id="btnManter" class="botao botao-secundario">VOLTAR PARA A CONFERÊNCIA</button>
 </section>
 
-</template><script src="troca.js?v=20261013-8"></script></body></html>
+</template><script src="troca.js?v=20261013-9"></script></body></html>

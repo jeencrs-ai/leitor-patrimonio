@@ -375,6 +375,7 @@ async function abrirLeitura(modo) {
   const ultima = itens.at(-1);
   $("ultimaPlaqueta").textContent = ultima?.plaqueta || "—";
   $("confirmacaoLeitura").textContent = ultima ? "Última plaqueta já salva neste celular" : "";
+  $("ultimaPlaqueta").closest(".leitura-recente").classList.remove("leitura-confirmada");
   $("codigoManual").value = "";
   mostrarStatusLeitura(ultima
     ? `${itens.length} plaqueta(s) já salva(s). A próxima leitura será adicionada à lista.`
@@ -405,7 +406,13 @@ function renderListaLeitura() {
     const horario = document.createElement("time");
     horario.dateTime = item.dataHora;
     horario.textContent = new Date(item.dataHora).toLocaleTimeString("pt-BR", { hour: "2-digit", minute: "2-digit" });
-    linha.append(codigo, horario);
+    const remover = document.createElement("button");
+    remover.className = "remover-leitura";
+    remover.type = "button";
+    remover.textContent = "EXCLUIR";
+    remover.setAttribute("aria-label", `Excluir plaqueta ${item.plaqueta}`);
+    remover.onclick = () => excluirLeitura(item.id);
+    linha.append(codigo, horario, remover);
     lista.append(linha);
   }
   $("btnMaisLeituras").classList.toggle("oculto", inicio === 0);
@@ -476,9 +483,13 @@ async function processarLeitura(valor, veioDaCamera = false) {
   try {
     await gravarConferencia();
     $("ultimaPlaqueta").textContent = plaqueta;
-    $("confirmacaoLeitura").textContent = `${modoLeitura === "saida" ? "Saída" : "Entrada"} salva neste celular`;
+    $("confirmacaoLeitura").textContent = `✓ ${modoLeitura === "saida" ? "Saída" : "Entrada"} salva neste celular`;
+    const confirmacao = $("ultimaPlaqueta").closest(".leitura-recente");
+    confirmacao.classList.remove("leitura-confirmada");
+    void confirmacao.offsetWidth;
+    confirmacao.classList.add("leitura-confirmada");
     mostrarStatusLeitura(`${plaqueta} salva neste celular. Pode aproximar a próxima plaqueta.`, "sucesso");
-    if (navigator.vibrate) navigator.vibrate(80);
+    if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
     $("codigoManual").value = "";
     renderListaLeitura();
     atualizarOperacao();
@@ -490,6 +501,56 @@ async function processarLeitura(valor, veioDaCamera = false) {
   else {
     processandoLeitura = false;
     if (scanner && $("telaLeitura").classList.contains("oculto") === false) lendo = true;
+  }
+}
+
+async function excluirLeitura(itemId) {
+  if (!conferencia || !modoLeitura) return;
+  const lista = modoLeitura === "saida" ? conferencia.saidas : conferencia.entradas;
+  const indice = lista.findIndex(item => item.id === itemId);
+  if (indice < 0) return;
+  const [item] = lista.slice(indice, indice + 1);
+  const entradasVinculadas = modoLeitura === "saida"
+    ? conferencia.entradas.filter(entrada => entrada.saidaId === item.id)
+    : [];
+  const mensagemVinculos = entradasVinculadas.length
+    ? `\n\n${entradasVinculadas.length} vínculo(s) com plaquetas novas também serão removidos.`
+    : "";
+  if (!confirm(`Excluir a plaqueta ${item.plaqueta} desta leitura?${mensagemVinculos}`)) return;
+
+  const vinculosAnteriores = entradasVinculadas.map(entrada => ({
+    entrada,
+    saidaId: entrada.saidaId,
+    plaquetaAnteriorManual: entrada.plaquetaAnteriorManual
+  }));
+  lista.splice(indice, 1);
+  vinculosAnteriores.forEach(({ entrada }) => {
+    entrada.saidaId = null;
+    entrada.plaquetaAnteriorManual = null;
+  });
+
+  try {
+    await gravarConferencia();
+    const ultima = lista.at(-1);
+    $("ultimaPlaqueta").textContent = ultima?.plaqueta || "—";
+    $("confirmacaoLeitura").textContent = ultima
+      ? "Última plaqueta já salva neste celular"
+      : "Nenhuma plaqueta salva nesta etapa";
+    $("ultimaPlaqueta").closest(".leitura-recente").classList.remove("leitura-confirmada");
+    renderListaLeitura();
+    atualizarOperacao();
+    mostrarStatusLeitura(
+      `Plaqueta ${item.plaqueta} removida${entradasVinculadas.length ? "; os vínculos associados foram desfeitos" : ""}.`,
+      "sucesso"
+    );
+  } catch (erro) {
+    lista.splice(indice, 0, item);
+    vinculosAnteriores.forEach(({ entrada, saidaId, plaquetaAnteriorManual }) => {
+      entrada.saidaId = saidaId;
+      entrada.plaquetaAnteriorManual = plaquetaAnteriorManual;
+    });
+    renderListaLeitura();
+    mostrarStatusLeitura(`Não foi possível excluir ${item.plaqueta}: ${erro.message}. Tente novamente.`, "erro");
   }
 }
 
