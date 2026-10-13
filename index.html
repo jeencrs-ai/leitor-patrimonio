@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, viewport-fit=cover">
+<meta name="theme-color" content="#111827">
+<title>Conferência Patrimonial</title>
+<link rel="stylesheet" href="style.css?v=20261013-8">
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body>
+<main id="appNovo" class="app fluxo-troca">
+  <section id="telaSetor">
+    <div class="cabecalho-inicial"><div class="icone">↔</div><h1>Troca de plaquetas</h1><p>Informe o setor. As leituras ficam salvas neste celular, mesmo sem internet.</p></div>
+    <div class="campo"><label for="setor">Setor</label><input id="setor" type="text" placeholder="Ex.: GESAT" autocomplete="off"></div>
+    <p id="erroSetor" class="erro" role="alert"></p>
+    <button id="btnIniciar" class="botao botao-principal botao-grande" type="button">SALVAR SETOR E COMEÇAR</button>
+    <div id="recuperarBox" class="alerta-recuperacao oculto">
+      <div class="alerta-recuperacao-icone" aria-hidden="true">↻</div>
+      <div class="alerta-recuperacao-conteudo"><strong>Conferência em andamento</strong><span id="recuperarInfo"></span></div>
+      <button id="btnContinuar" class="botao botao-principal" type="button">CONTINUAR</button>
+    </div>
+    <div id="avisoLegado" class="aviso-legado oculto">Há dados de uma conferência da versão anterior neste navegador. Eles não foram migrados para o novo formato. Baixe uma cópia antes de limpar os dados do navegador.<button id="btnExportarLegado" class="botao botao-secundario" type="button">BAIXAR CÓPIA DOS DADOS ANTIGOS</button></div>
+    <section class="historico">
+      <h2>Setores salvos neste celular</h2>
+      <p>Abra uma conferência anterior para consultar ou continuar editando.</p>
+      <div id="listaHistorico" class="lista-historico" aria-live="polite"></div>
+      <button id="btnMaisHistorico" class="botao botao-secundario oculto" type="button">CARREGAR SETORES ANTIGOS</button>
+    </section>
+  </section>
+
+  <section id="telaOperacao" class="oculto">
+    <header class="topo"><div><span class="rotulo">SETOR</span><h2 id="nomeSetor">—</h2></div><button id="btnTrocarSetor" class="texto-botao" type="button">NOVO SETOR</button></header>
+    <p class="instrucao">Faça as duas leituras do setor. Depois, relacione cada plaqueta nova à antiga.</p>
+    <div class="resumo-troca"><div><span>SAÍDAS LIDAS</span><strong id="totalSaidas">0</strong></div><div><span>ENTRADAS LIDAS</span><strong id="totalEntradas">0</strong></div></div>
+    <div class="etapas-leitura">
+      <button id="btnSaida" class="etapa-leitura etapa-saida" type="button"><span>Registrar plaquetas antigas</span><strong>LER SAÍDAS</strong><small id="statusSaida">Ainda não iniciada</small></button>
+      <button id="btnEntrada" class="etapa-leitura etapa-entrada" type="button"><span>Registrar plaquetas novas</span><strong>LER ENTRADAS</strong><small id="statusEntrada">Ainda não iniciada</small></button>
+    </div>
+    <p id="ajudaConciliacao" class="ajuda-acao">Encerre as leituras de saída e entrada para liberar o vínculo automático ou manual.</p>
+    <button id="btnConciliar" class="botao botao-principal botao-grande" type="button" disabled>RELACIONAR PLAQUETAS</button>
+    <button id="btnResumo" class="botao botao-secundario" type="button">CONFERIR E FINALIZAR</button>
+    <p id="statusOperacao" class="status" role="status"></p>
+  </section>
+
+  <section id="telaLeitura" class="oculto">
+    <header class="topo-simples"><button id="btnVoltarLeitura" class="voltar" type="button" aria-label="Voltar">←</button><div><span class="rotulo" id="rotuloLeitura">LEITURA</span><h2 id="tituloLeitura">—</h2></div></header>
+    <p class="leitura-ajuda" id="ajudaLeitura">Aponte a câmera para a plaqueta. Cada leitura é salva automaticamente.</p>
+    <div class="camera"><div id="reader"></div></div>
+    <p id="statusCamera" class="status" role="status">Preparando leitor…</p>
+    <div class="manual-rapido"><label for="codigoManual">Se a câmera não conseguir ler, digite o código</label><div><input id="codigoManual" type="text" autocomplete="off" placeholder="Código da plaqueta"><button id="btnSalvarManual" type="button">SALVAR</button></div></div>
+    <div class="leitura-recente" aria-live="polite"><span>ÚLTIMA LEITURA</span><strong id="ultimaPlaqueta">—</strong><small id="confirmacaoLeitura"></small></div>
+    <section class="lista-leitura">
+      <div class="lista-leitura-cabecalho"><h3>Plaquetas desta etapa</h3><strong id="quantidadeListaLeitura">0 lidas</strong></div>
+      <p id="listaLeituraVazia" class="lista-leitura-vazia">As plaquetas salvas aparecerão aqui.</p>
+      <ol id="listaLeituras" class="lista-leituras"></ol>
+      <button id="btnMaisLeituras" class="botao botao-secundario" type="button">CARREGAR MAIS ANTIGAS</button>
+    </section>
+    <button id="btnEncerrarLeitura" class="botao botao-secundario" type="button">ENCERRAR ESTA LEITURA</button>
+  </section>
+
+  <section id="telaConciliacao" class="oculto">
+    <header class="topo-simples"><button id="btnVoltarConciliacao" class="voltar" type="button" aria-label="Voltar">←</button><div><span class="rotulo">CONCILIAÇÃO</span><h2>Relacionar plaquetas</h2></div></header>
+    <p class="instrucao">Escolha como relacionar as plaquetas que já foram lidas.</p>
+    <button id="btnVincularSequencia" class="botao botao-principal botao-grande botao-sequencia" type="button">VINCULAR AUTOMATICAMENTE</button>
+    <p class="ajuda-sequencia">Pareia entradas e saídas livres pela ordem das leituras. Os vínculos já salvos não mudam.</p>
+    <p class="ajuda-sequencia">Para fazer manualmente, selecione ou digite a plaqueta antiga em cada plaqueta nova abaixo.</p>
+    <p id="statusSequencia" class="status" role="status"></p>
+    <div id="listaConciliacao" class="lista"></div>
+    <div id="conciliacaoVazia" class="vazio oculto"><strong>Nenhuma entrada lida</strong><span>Leia as plaquetas novas antes de fazer os vínculos.</span></div>
+    <p id="erroConciliacao" class="erro" role="alert"></p>
+  </section>
+
+  <section id="telaResumo" class="oculto">
+    <header class="topo-simples"><button id="btnVoltarResumo" class="voltar" type="button" aria-label="Voltar">←</button><div><span class="rotulo">RESULTADO</span><h2>Conferência do setor</h2></div></header>
+    <div class="resumo-linhas">
+      <div><span>Setor</span><strong id="resumoSetor">—</strong></div>
+      <div><span>Saídas lidas</span><strong id="resumoSaidas">0</strong></div>
+      <div><span>Entradas lidas</span><strong id="resumoEntradas">0</strong></div>
+      <div><span>Pares relacionados</span><strong id="resumoPares">0</strong></div>
+      <div><span>Entradas sem saída vinculada</span><strong id="resumoSemSaida">0</strong></div>
+      <div><span>Saídas sem entrada vinculada</span><strong id="resumoSobraSaida">0</strong></div>
+      <div><span>Plaquetas antigas digitadas e não lidas na saída</span><strong id="resumoDigitadas">0</strong></div>
+    </div>
+    <div id="alertaDivergencia" class="alerta-resultado oculto" role="alert"></div>
+    <div id="alertaSucesso" class="alerta-sucesso oculto">As quantidades e os vínculos estão conciliados.</div>
+    <button id="btnFinalizar" class="botao botao-principal botao-grande" type="button">FINALIZAR E EXPORTAR</button>
+    <button id="btnRevisar" class="botao botao-secundario" type="button">REVISAR VÍNCULOS</button>
+  </section>
+
+  <section id="telaFinal" class="oculto final">
+    <div class="icone-final">✓</div><h1>Conferência salva</h1><p>Os dados permanecem neste celular. Exporte e envie o arquivo para guardar outra cópia.</p>
+    <div class="resumo-linhas"><div><span>Setor</span><strong id="finalSetor">—</strong></div><div><span>Saídas</span><strong id="finalSaidas">0</strong></div><div><span>Entradas</span><strong id="finalEntradas">0</strong></div><div><span>Divergências</span><strong id="finalDivergencias">0</strong></div></div>
+    <button id="btnExportar" class="botao botao-principal botao-grande" type="button">📊 EXPORTAR PLANILHA</button>
+    <button id="btnWhatsApp" class="botao botao-secundario" type="button">ENVIAR RESUMO PELO WHATSAPP</button>
+    <p id="statusExportacao" class="status" role="status"></p>
+    <button id="btnNova" class="botao botao-perigo" type="button">INICIAR OUTRO SETOR</button>
+  </section>
+</main>
+<template id="fluxoAntigo">
+
+<section id="telaSetor">
+<div class="cabecalho-inicial"><div class="icone">✓</div><h1>Conferência Patrimonial</h1><p>Informe o setor para começar.</p></div>
+<div class="campo"><label for="setor">Setor</label><input id="setor" type="text" placeholder="Ex.: GESAT" autocomplete="off"></div>
+<p id="erroSetor" class="erro"></p>
+<button id="btnEntrar" class="botao botao-principal botao-grande">ENTRAR NO SETOR</button>
+<div id="recuperarBox" class="alerta-recuperacao oculto">
+  <div class="alerta-recuperacao-icone">↻</div>
+  <div class="alerta-recuperacao-conteudo">
+    <strong>Conferência em andamento</strong>
+    <span id="recuperarInfo"></span>
+  </div>
+  <button id="btnContinuarSalva" class="botao botao-principal">CONTINUAR CONFERÊNCIA</button>
+</div>
+</section>
+
+<section id="telaConferencia" class="oculto">
+<header class="topo"><div><span class="rotulo">SETOR</span><h2 id="nomeSetor">—</h2></div><div class="contador"><strong id="quantidadeTotal">0</strong><span>itens</span></div></header>
+<div class="resumo-conferencia"><div><span>POSTOS</span><strong id="quantidadePostos">0</strong></div><div><span>PATRIMÔNIOS</span><strong id="quantidadeTotalResumo">0</strong></div></div>
+<div id="listaPostos" class="lista-postos"></div>
+<div id="postosVazio" class="vazio"><div class="vazio-icone">👤</div><strong>Nenhum posto criado</strong><span>Comece criando o primeiro posto.</span></div>
+<div class="acoes"><button id="btnNovoPosto" class="botao botao-principal botao-grande">+ NOVO POSTO</button><button id="btnFinalizar" class="botao botao-secundario">FINALIZAR CONFERÊNCIA</button></div>
+</section>
+
+<section id="telaPosto" class="oculto">
+<header class="topo-simples"><button id="btnVoltarPosto" class="voltar" type="button">←</button><div><span class="rotulo">NOVO POSTO</span><h2 id="numeroPosto">POSTO 01</h2></div></header>
+<div class="campo"><label for="nomeResponsavel">Responsável</label><input id="nomeResponsavel" type="text" placeholder="Nome do usuário" autocomplete="off"></div>
+<div class="campo"><label for="cpfResponsavel">CPF <small>opcional</small></label><input id="cpfResponsavel" type="text" inputmode="numeric" placeholder="CPF do usuário" autocomplete="off"></div>
+<p class="ajuda">O responsável será vinculado aos patrimônios deste posto.</p><p id="erroPosto" class="erro"></p>
+<button id="btnIniciarPosto" class="botao botao-principal botao-grande">INICIAR POSTO</button>
+</section>
+
+<section id="telaPostoAtual" class="oculto">
+<header class="topo"><div><span class="rotulo" id="rotuloPosto">POSTO 01</span><h2 id="nomePostoResponsavel">—</h2><small id="cpfPostoResponsavel"></small></div><div class="contador"><strong id="quantidadePosto">0</strong><span>itens</span></div></header>
+<div id="listaPatrimonios" class="lista"></div>
+<div id="patrimoniosVazio" class="vazio"><div class="vazio-icone">📷</div><strong>Nenhuma plaqueta lida</strong><span>Comece pela primeira plaqueta.</span></div>
+<div class="acoes"><button id="btnLer" class="botao botao-principal botao-grande">📷 LER PLAQUETA</button><button id="btnDigitarPosto" class="botao botao-secundario">⌨️ DIGITAR CÓDIGO</button><button id="btnFinalizarPosto" class="botao botao-secundario">FINALIZAR POSTO</button></div>
+</section>
+
+<section id="telaCamera" class="oculto">
+<header class="topo-simples"><button id="btnVoltarCamera" class="voltar" type="button">←</button><div><span class="rotulo">LEITURA</span><h2 id="setorCamera">—</h2></div></header>
+<div class="camera"><div id="reader"></div></div><p id="statusCamera" class="status">Aponte a câmera para o código de barras.</p>
+<button id="btnDigitar" class="botao botao-principal">⌨️ DIGITAR CÓDIGO</button><button id="btnCancelarCamera" class="botao botao-secundario">CANCELAR</button>
+</section>
+
+<section id="telaManual" class="oculto">
+<header class="topo-simples"><button id="btnVoltarManual" class="voltar" type="button">←</button><div><span class="rotulo">DIGITAÇÃO MANUAL</span><h2>Informar plaqueta</h2></div></header>
+<div class="campo"><label for="codigoManual">Código da plaqueta</label><input id="codigoManual" type="text" inputmode="numeric" placeholder="Digite o código" autocomplete="off"></div>
+<p id="erroManual" class="erro"></p><button id="btnContinuarManual" class="botao botao-principal botao-grande">CONTINUAR</button>
+</section>
+
+<section id="telaDados" class="oculto">
+<header class="topo-simples"><button id="btnVoltarDados" class="voltar" type="button">←</button><div><span class="rotulo">NOVA PLAQUETA</span><h2>Confirmar dados</h2></div></header>
+<div class="cartao-plaqueta">
+  <div>
+    <span>PLAQUETA</span>
+    <strong id="plaquetaLida">—</strong>
+    <input id="plaquetaEditavel" class="input-plaqueta-edicao oculto" type="text" inputmode="numeric" autocomplete="off" aria-label="Código da plaqueta">
+  </div>
+</div>
+<div class="campo"><label>Tipo do equipamento</label><div class="tipo-cards">
+<button id="tipoCpu" class="tipo-card selecionado" type="button"><span class="tipo-icone">🖥️</span><strong>CPU</strong><small>Computador</small></button>
+<button id="tipoMonitor" class="tipo-card" type="button"><span class="tipo-icone">🖵</span><strong>MONITOR</strong><small>Tela</small></button>
+</div><input id="tipoEquipamento" type="hidden" value="CPU"></div>
+<div class="campo"><label for="descricao">Descrição <small>opcional</small></label><input id="descricao" type="text" placeholder="Ex.: Computador Dell" autocomplete="off"></div>
+<label class="check-linha"><input id="compartilha" type="checkbox"><span>Este computador é compartilhado por outro usuário</span></label>
+<div id="camposCompartilhado" class="bloco-compartilhado oculto"><div class="titulo-compartilhado">Segundo usuário</div>
+<div class="campo"><label for="nomeCompartilhado">Nome do usuário</label><input id="nomeCompartilhado" type="text" autocomplete="off" placeholder="Nome do usuário"></div>
+<div class="campo"><label for="cpfCompartilhado">CPF <small>opcional</small></label><input id="cpfCompartilhado" type="text" inputmode="numeric" placeholder="CPF do usuário" autocomplete="off"></div></div>
+<div id="erroDados" class="alerta-erro oculto" role="alert"><span class="alerta-erro-icone">!</span><span id="erroDadosTexto"></span></div><button id="btnSalvar" class="botao botao-principal botao-grande">SALVAR PATRIMÔNIO</button>
+</section>
+
+<section id="telaFinalPosto" class="oculto final"><div class="icone-final">✓</div><h1>Posto finalizado</h1><p>Confira os dados antes de continuar.</p>
+<div class="resumo"><div><span>Posto</span><strong id="finalPosto">—</strong></div><div><span>Responsável</span><strong id="finalPostoResponsavel">—</strong></div><div><span>CPF</span><strong id="finalPostoCpf">—</strong></div><div><span>CPU</span><strong id="finalPostoCpu">0</strong></div><div><span>Monitores</span><strong id="finalPostoMonitores">0</strong></div><div><span>Total</span><strong id="finalPostoTotal">0</strong></div></div>
+<button id="btnNovoPostoDepois" class="botao botao-principal botao-grande">+ NOVO POSTO</button><button id="btnVoltarConferencia" class="botao botao-secundario">VOLTAR PARA A CONFERÊNCIA</button>
+</section>
+
+<section id="telaFinal" class="oculto final"><div class="icone-final">✓</div><h1>Conferência finalizada</h1><p>Confira o resumo antes de compartilhar.</p>
+<div class="resumo"><div><span>Setor</span><strong id="finalSetor">—</strong></div><div><span>Postos</span><strong id="finalPostos">0</strong></div><div><span>Patrimônios</span><strong id="finalQuantidade">0</strong></div></div>
+<button id="btnWhatsApp" class="botao botao-principal botao-grande">📱 ENVIAR TEXTO PELO WHATSAPP</button><button id="btnCompartilhar" class="botao botao-secundario botao-grande">📊 GERAR / COMPARTILHAR EXCEL</button>
+<p id="statusCompartilhar" class="status"></p><button id="btnNova" class="botao botao-perigo">NOVA CONFERÊNCIA</button><button id="btnManter" class="botao botao-secundario">VOLTAR PARA A CONFERÊNCIA</button>
+</section>
+
+</template><script src="troca.js?v=20261013-8"></script></body></html>
