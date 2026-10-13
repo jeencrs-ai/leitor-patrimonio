@@ -21,6 +21,7 @@ let limiteListaLeitura = 30;
 let cursorHistorico = null;
 let carregandoHistorico = false;
 let temMaisHistorico = false;
+let contextoAudioLeitura = null;
 
 const novoId = prefixo => `${prefixo}_${Date.now()}_${Math.random().toString(36).slice(2, 9)}`;
 const chaveCodigo = codigo => String(codigo || "").trim().toLocaleUpperCase("pt-BR");
@@ -355,6 +356,7 @@ function continuar() {
 
 async function abrirLeitura(modo) {
   if (!conferencia) return;
+  prepararAudioLeitura();
   const estavaEncerrada = conferencia.leiturasFinalizadas[modo];
   conferencia.leiturasFinalizadas[modo] = false;
   try {
@@ -389,6 +391,41 @@ function mostrarStatusLeitura(mensagem, tipo) {
   const status = $("statusCamera");
   status.className = `status status-leitura-${tipo}`;
   status.textContent = mensagem;
+}
+
+function prepararAudioLeitura() {
+  const AudioContexto = window.AudioContext || window.webkitAudioContext;
+  if (!AudioContexto) return;
+  try {
+    contextoAudioLeitura ||= new AudioContexto();
+    if (contextoAudioLeitura.state !== "running") {
+      contextoAudioLeitura.resume().catch(erro => {
+        console.warn("Não foi possível ativar o som de confirmação da leitura.", erro);
+      });
+    }
+  } catch (erro) {
+    console.warn("Não foi possível preparar o som de confirmação da leitura.", erro);
+  }
+}
+
+function emitirBipLeitura() {
+  if (!contextoAudioLeitura || contextoAudioLeitura.state !== "running") return;
+  try {
+    const inicio = contextoAudioLeitura.currentTime;
+    const oscilador = contextoAudioLeitura.createOscillator();
+    const volume = contextoAudioLeitura.createGain();
+    oscilador.type = "sine";
+    oscilador.frequency.setValueAtTime(880, inicio);
+    volume.gain.setValueAtTime(0.0001, inicio);
+    volume.gain.exponentialRampToValueAtTime(0.12, inicio + 0.01);
+    volume.gain.exponentialRampToValueAtTime(0.0001, inicio + 0.13);
+    oscilador.connect(volume);
+    volume.connect(contextoAudioLeitura.destination);
+    oscilador.start(inicio);
+    oscilador.stop(inicio + 0.14);
+  } catch (erro) {
+    console.warn("Não foi possível emitir o som de confirmação da leitura.", erro);
+  }
 }
 
 function renderListaLeitura() {
@@ -489,6 +526,7 @@ async function processarLeitura(valor, veioDaCamera = false) {
     void confirmacao.offsetWidth;
     confirmacao.classList.add("leitura-confirmada");
     mostrarStatusLeitura(`${plaqueta} salva neste celular. Pode aproximar a próxima plaqueta.`, "sucesso");
+    if (veioDaCamera) emitirBipLeitura();
     if (navigator.vibrate) navigator.vibrate([120, 60, 120]);
     $("codigoManual").value = "";
     renderListaLeitura();
