@@ -35,8 +35,6 @@
 <div class="campo"><label for="quantidadeCompra">Quantidade a comprar</label><input id="quantidadeCompra" type="number" min="0" max="2" step="1" value="2"></div>
 <div class="campo"><label for="marca">Marca do monitor velho</label><input id="marca" autocomplete="off" placeholder="Ex.: Dell, LG, Samsung"></div>
 <button id="ler" class="botao botao-secundario">+ LER PATRIMÔNIO VELHO</button>
-<div id="reader"></div><button id="parar" class="botao botao-secundario oculto">FECHAR CÂMERA</button>
-<details><summary>Digitar patrimônio velho</summary><div class="manual-rapido"><label for="codigo">Patrimônio velho</label><div><input id="codigo" autocomplete="off"><button id="adicionar">MARCAR</button></div></div></details>
 <div id="patrimonios" class="lista"></div>
 <p id="previsao" class="status" aria-live="polite"></p>
 <button id="salvar" class="botao botao-principal">FINALIZAR CPU</button>
@@ -45,5 +43,12 @@
 <button id="exportar" class="botao botao-secundario">EXPORTAR</button>
 <button id="finalizarSetor" class="botao botao-principal">FINALIZAR SETOR E VOLTAR AO INÍCIO</button>
 </section>
+<section id="telaLeitura" class="oculto">
+<header class="topo"><h2 id="tituloLeitura">Ler patrimônio</h2><button id="parar" class="texto-botao">← VOLTAR</button></header>
+<p id="ajudaLeitura">Aponte a câmera para o código de barras.</p>
+<div class="camera"><div id="reader"></div></div>
+<p id="statusLeitor" class="status" role="status"></p>
+<div class="manual-rapido"><label for="codigo">Ou digite o patrimônio</label><div><input id="codigo" autocomplete="off"><button id="adicionar">CONFIRMAR</button></div></div>
+</section>
 <p id="status" class="status" role="status" aria-live="polite"></p>
-</main><script src="levantamento.js?v=20261015-11"></script></body></html>
+</main><script src="levantamento.js?v=20261015-12"></script></body></html>

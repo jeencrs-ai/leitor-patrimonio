@@ -10,7 +10,7 @@ const mensagem = t => $('status').textContent = t;
 const atual = () => dados.find(s => s.id === ativo);
 const novoId = () => `${Date.now()}_${Math.random().toString(36).slice(2)}`;
 function mostrarTela(id) {
-  ['inicio','telaResumos','telaSalvos','operacao'].forEach(tela => $(tela).classList.toggle('oculto', tela !== id));
+  ['inicio','telaResumos','telaSalvos','operacao','telaLeitura'].forEach(tela => $(tela).classList.toggle('oculto', tela !== id));
   mensagem(''); window.scrollTo?.(0,0);
 }
 function abrirSetor(s) {
@@ -119,8 +119,9 @@ function adicionar(codigo) {
   if ($('quantidadeCompra').value === '' || !quantidadesValidas({...formulario(), velhos:patrimonios.length+1})) { mensagem('Os velhos não podem ultrapassar a quantidade a comprar.'); return; }
   if (patrimonios.some(v => chave(v) === chave(p)) || atual().postos.some(x => x.id !== editando && x.patrimonios.some(v => chave(v) === chave(p)))) { mensagem('Patrimônio já registrado neste setor.'); return; }
   patrimonios.push(p); marcas[p] = $('marca').value.trim(); $('marca').value = ''; rascunho(); renderPatrimonios(); $('codigo').value = ''; mensagem(`Patrimônio ${p} registrado.`);
+  return true;
 }
-async function parar() { if (cameraIniciando) return; if (scanner) { const s = scanner; scanner = null; try { await s.stop(); await s.clear(); } catch {} } $('parar').classList.add('oculto'); }
+async function parar() { if (cameraIniciando) return; if (scanner) { const s = scanner; scanner = null; try { await s.stop(); } catch {} try { await s.clear(); } catch {} } }
 function linhas(s) { return [['Setor','Patrimônio CPU','Qtd. novos a comprar','Patrimônio velho 1','Marca velho 1','Patrimônio velho 2','Marca velho 2'], ...s.postos.map(p => [s.setor,p.cpu || '',comprar(p),p.patrimonios[0] || '',p.marcas?.[p.patrimonios[0]] || '',p.patrimonios[1] || '',p.marcas?.[p.patrimonios[1]] || ''])]; }
 function exportar() {
   if (!atual().postos.length) { mensagem('Salve ao menos um posto antes de exportar.'); return; }
@@ -151,8 +152,22 @@ function iniciar() {
   $('marca').oninput = rascunho;
   $('quantidadeCompra').oninput = validarCompra;
   $('quantidadeCompra').onchange = validarCompra;
-  $('adicionar').onclick = () => adicionar($('codigo').value);
-  $('codigo').onkeydown = e => { if(e.key === 'Enter') adicionar($('codigo').value); };
+  let processandoCodigo = false;
+  async function receberCodigo(codigo) {
+    if (cameraIniciando || processandoCodigo || !String(codigo).trim()) return;
+    processandoCodigo = true;
+    try {
+      if (modoCamera === 'cpu') {
+        const valor = String(codigo).trim();
+        if (atual().postos.some(p => p.id !== editando && p.cpu?.toLocaleUpperCase('pt-BR') === valor.toLocaleUpperCase('pt-BR'))) { mensagem('Esta CPU já foi registrada. Volte e edite o registro existente.'); return; }
+        $('cpu').value = valor; rascunho();
+      } else if (!adicionar(codigo)) return;
+      await parar(); $('codigo').value = ''; mostrarTela('operacao');
+      mensagem(modoCamera === 'cpu' ? 'CPU lida. Informe a quantidade a comprar.' : 'Monitor velho marcado para substituição.');
+    } finally { processandoCodigo = false; }
+  }
+  $('adicionar').onclick = () => receberCodigo($('codigo').value);
+  $('codigo').onkeydown = e => { if(e.key === 'Enter') receberCodigo($('codigo').value); };
   $('salvar').onclick = async () => {
     const p = formulario(); p.cpu = p.cpu.trim();
     if (!p.cpu) return mensagem('Leia ou digite o patrimônio da CPU para identificar este levantamento.');
@@ -180,14 +195,19 @@ function iniciar() {
   async function abrirCamera(modo) {
     if(scanner || cameraIniciando) return;
     if (modo === 'velho' && ($('quantidadeCompra').value === '' || !quantidadesValidas({...formulario(), velhos:patrimonios.length+1}))) return mensagem('Informe a quantidade a comprar antes de ler os velhos.');
-    if(!window.Html5Qrcode) return mensagem('Leitor indisponível. Digite o patrimônio.');
-    modoCamera = modo; cameraIniciando = true; $('lerCpu').disabled = true; $('ler').disabled = true; $('voltar').disabled = true; $('salvar').disabled = true; $('cancelar').disabled = true;
-    try { scanner = new Html5Qrcode('reader'); await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:250,height:140}}, codigo => { if (modoCamera === 'cpu') { $('cpu').value = String(codigo).trim(); rascunho(); mensagem('Patrimônio da CPU lido.'); parar(); } else adicionar(codigo); }); $('parar').classList.remove('oculto'); }
-    catch { mensagem('Câmera indisponível. Digite o patrimônio.'); cameraIniciando = false; await parar(); }
-    finally { cameraIniciando = false; ['lerCpu','ler','voltar','salvar','cancelar'].forEach(c => $(c).disabled = false); }
+    modoCamera = modo; $('codigo').value = ''; mostrarTela('telaLeitura');
+    $('tituloLeitura').textContent = modo === 'cpu' ? 'Ler CPU' : 'Ler monitor velho';
+    $('ajudaLeitura').textContent = modo === 'cpu' ? 'Leia o patrimônio da CPU.' : `Leia o patrimônio do monitor velho${$('marca').value.trim() ? ' — ' + $('marca').value.trim() : ''}.`;
+    $('statusLeitor').textContent = 'Preparando câmera…';
+    if(!window.Html5Qrcode) { $('statusLeitor').textContent = 'Leitor indisponível. Digite o patrimônio abaixo.'; return; }
+    cameraIniciando = true; $('parar').disabled = true; $('adicionar').disabled = true;
+    try { scanner = new Html5Qrcode('reader'); await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:250,height:140}}, receberCodigo); $('statusLeitor').textContent = 'Aponte para o código. A leitura volta automaticamente ao formulário.'; }
+    catch { cameraIniciando = false; await parar(); $('statusLeitor').textContent = 'Câmera indisponível. Digite o patrimônio abaixo.'; }
+    finally { cameraIniciando = false; $('parar').disabled = false; $('adicionar').disabled = false; }
   };
   $('ler').onclick = () => abrirCamera('velho');
   $('lerCpu').onclick = () => abrirCamera('cpu');
-  $('parar').onclick = parar; $('exportar').onclick = exportar;
+  $('parar').onclick = async () => { if (cameraIniciando || processandoCodigo) return; await parar(); $('codigo').value = ''; mostrarTela('operacao'); };
+  $('exportar').onclick = exportar;
 }
 iniciar();
