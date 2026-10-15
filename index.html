@@ -1,0 +1,49 @@
+﻿<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Levantamento de monitores</title>
+<link rel="stylesheet" href="style.css">
+<script src="https://unpkg.com/html5-qrcode"></script>
+<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
+</head>
+<body><main class="app fluxo-troca">
+<h1>Levantamento de monitores</h1>
+<section id="inicio">
+<div class="campo"><label for="setor">Setor</label><input id="setor" autocomplete="off"></div>
+<button id="criar" class="botao botao-principal">INICIAR SETOR</button>
+<div class="etapas-leitura" style="margin-top:16px">
+<button id="abrirResumos" class="botao botao-secundario">VER RESUMOS</button>
+<button id="abrirSalvos" class="botao botao-secundario">SETORES SALVOS</button>
+</div>
+<details><summary>Conferências anteriores</summary><a href="troca.html">Abrir troca de plaquetas</a></details>
+</section>
+<section id="telaResumos" class="oculto">
+<button id="voltarResumos" class="texto-botao">← VOLTAR</button>
+<h2>Resumo geral</h2><div id="resumoGeral" class="resumo-linhas"></div>
+<h2>Resumo por setor</h2><div id="resumoSetores" class="lista"></div>
+</section>
+<section id="telaSalvos" class="oculto">
+<button id="voltarSalvos" class="texto-botao">← VOLTAR</button>
+<h2>Setores salvos</h2><div id="historico" class="lista"></div>
+</section>
+<section id="operacao" class="oculto">
+<header class="topo"><h2 id="titulo"></h2><button id="voltar" class="texto-botao">OUTRO SETOR</button></header>
+<button id="lerCpu" class="botao botao-principal">LER CPU</button>
+<div class="campo"><label for="cpu">Patrimônio da CPU</label><input id="cpu" required autocomplete="off" placeholder="Leitura automática ou digitação"></div>
+<div class="campo"><label for="quantidadeCompra">Quantidade a comprar</label><input id="quantidadeCompra" type="number" min="0" max="2" step="1" value="2"></div>
+<div class="campo"><label for="marca">Marca do monitor velho</label><input id="marca" autocomplete="off" placeholder="Ex.: Dell, LG, Samsung"></div>
+<button id="ler" class="botao botao-secundario">+ LER PATRIMÔNIO VELHO</button>
+<div id="reader"></div><button id="parar" class="botao botao-secundario oculto">FECHAR CÂMERA</button>
+<details><summary>Digitar patrimônio velho</summary><div class="manual-rapido"><label for="codigo">Patrimônio velho</label><div><input id="codigo" autocomplete="off"><button id="adicionar">MARCAR</button></div></div></details>
+<div id="patrimonios" class="lista"></div>
+<p id="previsao" class="status" aria-live="polite"></p>
+<button id="salvar" class="botao botao-principal">FINALIZAR CPU</button>
+<button id="cancelar" class="texto-botao">LIMPAR / CANCELAR</button>
+<details><summary>Resumo e CPUs salvas</summary><div id="totais" class="resumo-linhas"></div><div id="postos" class="lista"></div></details>
+<button id="exportar" class="botao botao-secundario">EXPORTAR</button>
+<button id="finalizarSetor" class="botao botao-principal">FINALIZAR SETOR E VOLTAR AO INÍCIO</button>
+</section>
+<p id="status" class="status" role="status" aria-live="polite"></p>
+</main><script src="levantamento.js?v=20261015-11"></script></body></html>
