@@ -1046,3 +1046,18 @@ h1, h2, p { margin-top: 0; }
   transform:scale(.99);
   background:#fee2e2;
 }
+/* Levantamento: escolhas e confirmação */
+.compra-opcoes {border:0;padding:0;margin:22px 0;min-width:0}
+.compra-opcoes legend {font-weight:700;margin-bottom:10px}
+.compra-opcoes small {display:block;color:#64748b;font-weight:400;margin-top:4px}
+.cards-compra {display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.cards-compra label {position:relative;cursor:pointer}
+.cards-compra input {position:absolute;opacity:0;width:1px;height:1px}
+.cards-compra span {display:flex;align-items:center;justify-content:center;gap:8px;min-height:90px;border:2px solid #cbd5e1;border-radius:16px;background:#fff;color:#334155}
+.cards-compra strong {font-size:32px}
+.cards-compra input:checked + span {border-color:#1d4ed8;background:#eff6ff;color:#1d4ed8;box-shadow:0 0 0 1px #1d4ed8}
+.cards-compra input:focus-visible + span {outline:3px solid #60a5fa;outline-offset:3px}
+.monitores-detalhes {margin:18px 0}
+.monitores-detalhes summary {padding:12px 0;cursor:pointer}
+.selo-sucesso {padding:16px;border-radius:12px;color:#166534;background:#dcfce7;font-weight:700}
+#telaConfirmacao .item {margin-bottom:12px}

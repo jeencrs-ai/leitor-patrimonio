@@ -10,7 +10,7 @@ const mensagem = t => $('status').textContent = t;
 const atual = () => dados.find(s => s.id === ativo);
 const novoId = () => `${Date.now()}_${Math.random().toString(36).slice(2)}`;
 function mostrarTela(id) {
-  ['inicio','telaResumos','telaSalvos','operacao','telaLeitura'].forEach(tela => $(tela).classList.toggle('oculto', tela !== id));
+  ['inicio','telaResumos','telaSalvos','operacao','telaLeitura','telaConfirmacao','telaExcluir'].forEach(tela => $(tela).classList.toggle('oculto', tela !== id));
   mensagem(''); window.scrollTo?.(0,0);
 }
 function abrirSetor(s) {
@@ -25,7 +25,7 @@ function alterar(fn) { const copia = structuredClone(dados); fn(copia.find(s => 
 function botao(texto, fn) { const b = document.createElement('button'); b.className = 'botao botao-secundario'; b.textContent = texto; b.onclick = fn; return b; }
 function item(texto) { const d = document.createElement('div'); d.className = 'item'; d.textContent = texto; return d; }
 function totais(s) { return s.postos.reduce((t,p) => ({ novos:t.novos+(p.novos || 0), velhos:t.velhos+p.velhos, acrescimos:t.acrescimos+acrescentar(p), compra:t.compra+comprar(p) }), {novos:0,velhos:0,acrescimos:0,compra:0}); }
-function formulario() { return {cpu:$('cpu').value, quantidadeCompra:Number($('quantidadeCompra').value), velhos:patrimonios.length, patrimonios:[...patrimonios], marcas:{...marcas}, marcaPendente:$('marca').value}; }
+function formulario() { return {cpu:$('cpu').value, quantidadeCompra:$('quantidadeCompra').value === '' ? null : Number($('quantidadeCompra').value), velhos:patrimonios.length, patrimonios:[...patrimonios], marcas:{...marcas}, marcaPendente:$('marca').value}; }
 function rascunho() { if (ativo) alterar(s => { s.rascunho = {...formulario(), editando}; }); }
 function necessidades(p) {
   return [
@@ -38,22 +38,21 @@ function prever() {
   const p = formulario();
   $('previsao').textContent = $('quantidadeCompra').value !== '' && quantidadesValidas(p) ? `${p.velhos} substituição(ões) · ${acrescentar(p)} acréscimo(s)` : '';
 }
-function preencher(p = {cpu:'',quantidadeCompra:2,patrimonios:[]}) {
+function preencher(p = {cpu:'',quantidadeCompra:null,patrimonios:[]}) {
   $('cpu').value = p.cpu || '';
-  $('quantidadeCompra').value = String(comprar(p));
-  patrimonios = [...p.patrimonios];
+  $('quantidadeCompra').value = p.quantidadeCompra === null ? '' : String(comprar(p));
+  document.querySelectorAll('input[name=compra]').forEach(c => { c.checked = c.value === $('quantidadeCompra').value; });
+  patrimonios = [...(p.patrimonios || [])];
   marcas = {...p.marcas}; $('marca').value = p.marcaPendente || '';
   ultimaCompraValida = quantidadesValidas(formulario()) ? comprar(formulario()) : 2;
   renderPatrimonios();
 }
-function validarCompra() {
-  const campo = $('quantidadeCompra'), valor = Number(campo.value);
-  if (campo.value === '' && !campo.validity?.badInput) { rascunho(); prever(); return; }
-  if (campo.validity?.badInput || !Number.isInteger(valor) || valor < patrimonios.length || valor > 2) {
-    campo.value = String(Math.max(ultimaCompraValida, patrimonios.length));
-    mensagem(`Informe de ${patrimonios.length} a 2 monitores a comprar.`);
-  } else { ultimaCompraValida = valor; mensagem(''); }
-  rascunho(); prever();
+function validarCompra(valor) {
+  if (Number(valor) < patrimonios.length) {
+    document.querySelectorAll('input[name=compra]').forEach(c => { c.checked = c.value === $('quantidadeCompra').value; });
+    mensagem('Remova um monitor vinculado antes de reduzir a compra para 1.'); return;
+  }
+  $('quantidadeCompra').value = valor; mensagem(''); rascunho(); prever();
 }
 function renderPatrimonios() {
   $('patrimonios').replaceChildren();
@@ -97,7 +96,25 @@ function renderResumos() {
   [['Setores',grupos.size],['CPUs',geral.cpus],['Novos a comprar',geral.compra],['Substituições incluídas',geral.velhos]].forEach(([nome,valor]) => {
     const linha = document.createElement('div'), texto = document.createElement('span'), numero = document.createElement('strong'); texto.textContent = nome; numero.textContent = valor; linha.append(texto,numero); $('resumoGeral').append(linha);
   });
-  grupos.forEach(g => $('resumoSetores').append(item(`${g.setor} · Novos a comprar: ${g.compra} · Substituições: ${g.velhos}`)));
+  grupos.forEach((g,chave) => {
+    const card = item(`${g.setor} · Novos a comprar: ${g.compra} · Substituições: ${g.velhos}`);
+    const label = document.createElement('label'), campo = document.createElement('input');
+    label.className = 'campo'; label.textContent = 'Nome do setor';
+    campo.value = g.setor; campo.autocomplete = 'off'; label.append(campo);
+    const salvar = () => {
+      const nome = campo.value.trim();
+      if (!nome) { mensagem('Informe o nome do setor.'); campo.focus(); return; }
+      const copia = structuredClone(dados);
+      copia.filter(s => s.setor.trim().toLocaleUpperCase('pt-BR') === chave).forEach(s => { s.setor = nome; });
+      if (!gravar(copia)) return;
+      inicio();
+      if (atual()) render();
+      mensagem(`Nome do setor corrigido para "${nome}".`);
+    };
+    campo.onkeydown = e => { if (e.key === 'Enter') salvar(); };
+    card.append(label,botao('SALVAR NOME DO SETOR',salvar));
+    $('resumoSetores').append(card);
+  });
   if (!grupos.size) $('resumoSetores').textContent = 'Nenhum setor salvo.';
 }
 function referencia(p, s) { return p.cpu ? `CPU ${p.cpu}` : p.usuario ? `Registro anterior: ${p.usuario}` : `Posto ${s.postos.findIndex(x => x.id === p.id) + 1}`; }
@@ -140,18 +157,69 @@ function exportar() {
     } mensagem('Levantamento exportado. Apenas postos salvos foram incluídos.');
   } catch(e) { mensagem(`Falha na exportação: ${e.message}`); }
 }
+function buscarCpu() {
+  const codigo = $('buscaCpu').value.trim().toLocaleUpperCase('pt-BR'), lista = $('resultadoCpu');
+  lista.replaceChildren(); mensagem('');
+  if (!codigo) { lista.textContent = 'Digite o patrimônio da CPU.'; return; }
+  dados.forEach(s => s.postos.filter(p => p.cpu?.trim().toLocaleUpperCase('pt-BR') === codigo).forEach(p => {
+    const card = item(`Setor: ${s.setor} · CPU ${p.cpu} · ${resumoCompra(p)} Monitores vinculados: ${p.patrimonios.join(', ') || 'Nenhum'}.`);
+    const excluir = botao('EXCLUIR CPU E MONITORES VINCULADOS', () => {
+      if (!confirm(`Excluir a CPU ${p.cpu} do setor ${s.setor} e seus monitores vinculados (${p.patrimonios.join(', ') || 'nenhum'})? Esta ação não pode ser desfeita.`)) return;
+      const copia = structuredClone(dados), setor = copia.find(x => x.id === s.id);
+      setor.postos = setor.postos.filter(x => x.id !== p.id);
+      if (setor.rascunho?.editando === p.id) delete setor.rascunho;
+      if (!gravar(copia)) return;
+      if (ativo === s.id && editando === p.id) { editando = null; preencher(); }
+      inicio(); buscarCpu(); mensagem(`CPU ${p.cpu} e seus monitores vinculados excluídos.`);
+    });
+    excluir.className = 'botao botao-perigo'; card.append(excluir); lista.append(card);
+  }));
+  if (!lista.childElementCount) lista.textContent = 'Nenhuma CPU encontrada com este patrimônio.';
+}
+function exportarTudo() {
+  if (!dados.some(s => s.postos.length)) return mensagem('Nenhuma CPU salva para exportar.');
+  if (!window.XLSX?.utils) return mensagem('O Excel não carregou. Conecte-se à internet e recarregue a página para baixar o relatório completo.');
+  try {
+    const livro = XLSX.utils.book_new();
+    const resumo = [['Setor','CPUs','Monitores a comprar','Substituições','Acréscimos']];
+    const cpus = [linhas({postos:[]})[0].concat(['Substituições','Acréscimos'])];
+    const monitores = [['Setor','Patrimônio CPU','Patrimônio monitor velho','Marca','Ação']];
+    const total = [0,0,0,0];
+    dados.forEach(s => {
+      const t = totais(s), valores = [s.postos.length,t.compra,t.velhos,t.acrescimos];
+      resumo.push([s.setor,...valores]); valores.forEach((v,i) => total[i] += v);
+      linhas(s).slice(1).forEach((l,i) => cpus.push([...l,s.postos[i].velhos,acrescentar(s.postos[i])]));
+      s.postos.forEach(p => p.patrimonios.forEach(codigo => monitores.push([s.setor,p.cpu || '',codigo,p.marcas?.[codigo] || '','Substituição'])));
+    });
+    resumo.push(['TOTAL',...total]);
+    [['Resumo',resumo],['CPUs',cpus],['Monitores vinculados',monitores]].forEach(([nome,tabela]) => {
+      const folha = XLSX.utils.aoa_to_sheet(tabela);
+      folha['!cols'] = tabela[0].map(() => ({wch:26}));
+      folha['!autofilter'] = {ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:tabela.length-1,c:tabela[0].length-1}})};
+      XLSX.utils.book_append_sheet(livro,folha,nome);
+    });
+    XLSX.writeFile(livro,`relatorio_completo_monitores_${new Date().toLocaleDateString('sv-SE')}.xlsx`);
+    mensagem('Relatório completo baixado: todos os setores e CPUs salvos neste aparelho. Rascunhos não incluídos.');
+  } catch(e) { mensagem(`Falha ao gerar Excel: ${e.message}`); }
+}
 function iniciar() {
   try { dados = JSON.parse(localStorage.getItem(CHAVE) || '[]'); if (!Array.isArray(dados)) throw Error(); }
   catch { mensagem('Não foi possível recuperar os dados. O conteúdo salvo foi preservado.'); $('criar').disabled = true; return; }
   inicio();
   $('criar').onclick = () => { const setor = $('setor').value.trim(); if (!setor) return mensagem('Informe o setor.'); const novo = {id:novoId(),setor,postos:[]}; if (gravar([...dados,novo])) abrirSetor(novo); };
+  $('abrirExcluir').onclick = () => { $('buscaCpu').value = ''; $('resultadoCpu').replaceChildren(); mostrarTela('telaExcluir'); $('buscaCpu').focus(); };
+  $('voltarExcluir').onclick = () => mostrarTela('inicio');
+  $('buscarCpu').onclick = buscarCpu;
+  $('buscaCpu').onkeydown = e => { if (e.key === 'Enter') buscarCpu(); };
+  $('buscaCpu').oninput = () => $('resultadoCpu').replaceChildren();
+  $('exportarTudo').onclick = exportarTudo;
+  $('proximaCpu').onclick = $('voltarSetor').onclick = () => { mostrarTela('operacao'); $('cpu').focus(); };
   $('abrirResumos').onclick = () => { renderResumos(); mostrarTela('telaResumos'); };
   $('abrirSalvos').onclick = () => { inicio(); mostrarTela('telaSalvos'); };
   $('voltarResumos').onclick = $('voltarSalvos').onclick = () => mostrarTela('inicio');
   $('cpu').oninput = () => { rascunho(); prever(); };
   $('marca').oninput = rascunho;
-  $('quantidadeCompra').oninput = validarCompra;
-  $('quantidadeCompra').onchange = validarCompra;
+  document.querySelectorAll('input[name=compra]').forEach(c => { c.onchange = () => validarCompra(c.value); });
   let processandoCodigo = false;
   async function receberCodigo(codigo) {
     if (cameraIniciando || processandoCodigo || !String(codigo).trim()) return;
@@ -173,10 +241,12 @@ function iniciar() {
     if (!p.cpu) return mensagem('Leia ou digite o patrimônio da CPU para identificar este levantamento.');
     if (p.cpu && atual().postos.some(x => x.id !== editando && x.cpu?.toLocaleUpperCase('pt-BR') === p.cpu.toLocaleUpperCase('pt-BR'))) return mensagem('Esta CPU já foi registrada neste setor. Edite o posto existente.');
     if (editando) { const anterior = atual().postos.find(x => x.id === editando); if (anterior?.usuario) p.usuario = anterior.usuario; }
-    if (!quantidadesValidas(p) || $('quantidadeCompra').value === '') return mensagem('Informe quantidades inteiras de zero a duas telas no total.');
+    if (!quantidadesValidas(p) || ![1,2].includes(p.quantidadeCompra)) return mensagem('Selecione o card de 1 ou 2 monitores a comprar.');
     p.id = editando || novoId();
     if (!alterar(s => { const i = s.postos.findIndex(x => x.id === p.id); if(i < 0) s.postos.push(p); else s.postos[i] = p; delete s.rascunho; })) return;
-    await parar(); editando = null; preencher(); render(); mensagem('CPU finalizada e salva. Leia outra CPU ou finalize o setor abaixo.');
+    await parar(); editando = null; preencher(); render();
+    $('confirmacaoCpu').replaceChildren(item(`CPU ${p.cpu}`), item(resumoCompra(p)), item(`Monitores vinculados: ${p.patrimonios.join(', ') || 'Nenhum'}.`));
+    mostrarTela('telaConfirmacao');
   };
   $('cancelar').onclick = async () => { await parar(); if(alterar(s => {delete s.rascunho;})) {editando = null; preencher(); mensagem('Formulário limpo.');} };
   $('voltar').onclick = async () => { await parar(); ativo = null; inicio(); mostrarTela('inicio'); };

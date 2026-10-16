@@ -16,6 +16,8 @@
 <div class="etapas-leitura" style="margin-top:16px">
 <button id="abrirResumos" class="botao botao-secundario">VER RESUMOS</button>
 <button id="abrirSalvos" class="botao botao-secundario">SETORES SALVOS</button>
+<button id="abrirExcluir" class="botao botao-secundario">BUSCAR / EXCLUIR CPU</button>
+<button id="exportarTudo" class="botao botao-secundario">BAIXAR RELATÓRIO COMPLETO • EXCEL</button>
 </div>
 <details><summary>Conferências anteriores</summary><a href="troca.html">Abrir troca de plaquetas</a></details>
 </section>
@@ -32,16 +34,26 @@
 <header class="topo"><h2 id="titulo"></h2><button id="voltar" class="texto-botao">OUTRO SETOR</button></header>
 <button id="lerCpu" class="botao botao-principal">LER CPU</button>
 <div class="campo"><label for="cpu">Patrimônio da CPU</label><input id="cpu" required autocomplete="off" placeholder="Leitura automática ou digitação"></div>
-<div class="campo"><label for="quantidadeCompra">Quantidade a comprar</label><input id="quantidadeCompra" type="number" min="0" max="2" step="1" value="2"></div>
+<fieldset class="compra-opcoes"><legend>Quantos monitores comprar? <small>Obrigatório</small></legend><input id="quantidadeCompra" type="hidden" value=""><div class="cards-compra"><label><input type="radio" name="compra" value="1" required><span><strong>1</strong> monitor</span></label><label><input type="radio" name="compra" value="2" required><span><strong>2</strong> monitores</span></label></div></fieldset>
+<details class="monitores-detalhes"><summary>Vincular monitores velhos para substituição</summary>
 <div class="campo"><label for="marca">Marca do monitor velho</label><input id="marca" autocomplete="off" placeholder="Ex.: Dell, LG, Samsung"></div>
 <button id="ler" class="botao botao-secundario">+ LER PATRIMÔNIO VELHO</button>
 <div id="patrimonios" class="lista"></div>
+</details>
 <p id="previsao" class="status" aria-live="polite"></p>
 <button id="salvar" class="botao botao-principal">FINALIZAR CPU</button>
 <button id="cancelar" class="texto-botao">LIMPAR / CANCELAR</button>
 <details><summary>Resumo e CPUs salvas</summary><div id="totais" class="resumo-linhas"></div><div id="postos" class="lista"></div></details>
-<button id="exportar" class="botao botao-secundario">EXPORTAR</button>
+<details><summary>Exportação deste setor</summary><button id="exportar" class="botao botao-secundario">EXPORTAR SETOR</button></details>
 <button id="finalizarSetor" class="botao botao-principal">FINALIZAR SETOR E VOLTAR AO INÍCIO</button>
+</section>
+<section id="telaConfirmacao" class="oculto">
+<p class="selo-sucesso">✓ Salvo neste aparelho</p><h2>CPU finalizada</h2><div id="confirmacaoCpu" class="item"></div>
+<button id="proximaCpu" class="botao botao-principal">CADASTRAR PRÓXIMA CPU</button><button id="voltarSetor" class="botao botao-secundario">VOLTAR AO SETOR</button>
+</section>
+<section id="telaExcluir" class="oculto">
+<button id="voltarExcluir" class="texto-botao">← VOLTAR</button><h2>Buscar e excluir CPU</h2><p>Digite o patrimônio para localizar a CPU em todos os setores. A exclusão também remove seus monitores vinculados.</p>
+<div class="campo"><label for="buscaCpu">Patrimônio da CPU</label><input id="buscaCpu" autocomplete="off" placeholder="Digite o patrimônio completo"></div><button id="buscarCpu" class="botao botao-principal">BUSCAR CPU</button><div id="resultadoCpu" class="lista" aria-live="polite"></div>
 </section>
 <section id="telaLeitura" class="oculto">
 <header class="topo"><h2 id="tituloLeitura">Ler patrimônio</h2><button id="parar" class="texto-botao">← VOLTAR</button></header>
@@ -51,4 +63,4 @@
 <div class="manual-rapido"><label for="codigo">Ou digite o patrimônio</label><div><input id="codigo" autocomplete="off"><button id="adicionar">CONFIRMAR</button></div></div>
 </section>
 <p id="status" class="status" role="status" aria-live="polite"></p>
-</main><script src="levantamento.js?v=20261015-12"></script></body></html>
+</main><script src="levantamento.js?v=20261016-1"></script></body></html>
