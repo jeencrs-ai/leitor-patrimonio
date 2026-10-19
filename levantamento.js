@@ -39,6 +39,11 @@ function prever() {
   $('previsao').textContent = $('quantidadeCompra').value !== '' && quantidadesValidas(p) ? `${p.velhos} substituição(ões) · ${acrescentar(p)} acréscimo(s)` : '';
 }
 function preencher(p = {cpu:'',quantidadeCompra:null,patrimonios:[]}) {
+  $('avisoEdicao').classList.toggle('oculto', !editando);
+  $('avisoEdicao').textContent = editando ? `Editando ${p.cpu ? 'CPU ' + p.cpu : 'registro salvo'}. Altere a quantidade ou exclua monitores abaixo e salve as alterações.` : '';
+  $('salvar').textContent = editando ? 'SALVAR ALTERAÇÕES' : 'FINALIZAR CPU';
+  $('cancelar').textContent = editando ? 'CANCELAR EDIÇÃO' : 'LIMPAR / CANCELAR';
+  document.querySelector('.monitores-detalhes').open = !!editando;
   $('cpu').value = p.cpu || '';
   $('quantidadeCompra').value = p.quantidadeCompra === null ? '' : String(comprar(p));
   document.querySelectorAll('input[name=compra]').forEach(c => { c.checked = c.value === $('quantidadeCompra').value; });
@@ -50,7 +55,8 @@ function preencher(p = {cpu:'',quantidadeCompra:null,patrimonios:[]}) {
 function validarCompra(valor) {
   if (Number(valor) < patrimonios.length) {
     document.querySelectorAll('input[name=compra]').forEach(c => { c.checked = c.value === $('quantidadeCompra').value; });
-    mensagem('Remova um monitor vinculado antes de reduzir a compra para 1.'); return;
+    document.querySelector('.monitores-detalhes').open = true;
+    mensagem('Exclua um monitor vinculado antes de reduzir a compra para 1. Depois salve as alterações.'); return;
   }
   $('quantidadeCompra').value = valor; mensagem(''); rascunho(); prever();
 }
@@ -61,7 +67,11 @@ function renderPatrimonios() {
     label.textContent = 'Marca'; label.className = 'campo'; campo.value = marcas[p] || ''; campo.placeholder = 'Marca do monitor';
     campo.oninput = () => { marcas[p] = campo.value.trim(); rascunho(); };
     label.append(campo); d.append(label);
-    d.append(botao('REMOVER', () => { patrimonios.splice(i,1); delete marcas[p]; rascunho(); renderPatrimonios(); })); $('patrimonios').append(d);
+    d.append(botao('EXCLUIR MONITOR', () => {
+      if (!confirm(`Excluir o monitor ${p} deste formulário? A quantidade a comprar será mantida. Para confirmar a alteração no registro, salve o formulário.`)) return;
+      patrimonios.splice(i,1); delete marcas[p]; rascunho(); renderPatrimonios();
+      mensagem('Monitor removido do formulário. Confira a quantidade a comprar e salve para confirmar.');
+    })); $('patrimonios').append(d);
   });
   prever();
 }
@@ -118,6 +128,10 @@ function renderResumos() {
   if (!grupos.size) $('resumoSetores').textContent = 'Nenhum setor salvo.';
 }
 function referencia(p, s) { return p.cpu ? `CPU ${p.cpu}` : p.usuario ? `Registro anterior: ${p.usuario}` : `Posto ${s.postos.findIndex(x => x.id === p.id) + 1}`; }
+function editarRegistro(s, p) {
+  if (s.rascunho && s.rascunho.editando !== p.id && !confirm('Abrir este registro para edição? O formulário em andamento neste setor será substituído. Os registros já salvos serão mantidos.')) return;
+  ativo = s.id; editando = p.id; preencher(p); rascunho(); render(); mostrarTela('operacao'); $('cpu').focus();
+}
 function render() {
   const s = atual(), t = totais(s); $('titulo').textContent = s.setor; $('totais').replaceChildren();
   [['CPUs',s.postos.length],['Total a comprar',t.compra]].forEach(([nome,n]) => {
@@ -126,7 +140,7 @@ function render() {
   $('postos').replaceChildren();
   s.postos.forEach(p => {
     const d = item(`${referencia(p, s)} · ${resumoCompra(p)} Patrimônios velhos: ${p.patrimonios.join(', ') || 'Nenhum'}.`);
-    d.append(botao('EDITAR', () => { editando = p.id; preencher(p); rascunho(); $('cpu').focus(); }));
+    d.append(botao('EDITAR QUANTIDADE / MONITORES', () => editarRegistro(s, p)));
     d.append(botao('EXCLUIR', () => { if (confirm(`Excluir ${referencia(p, s)}?`) && alterar(s => { s.postos = s.postos.filter(x => x.id !== p.id); if (s.rascunho?.editando === p.id) delete s.rascunho; })) { if(editando === p.id) {editando = null; preencher();} render(); } }));
     $('postos').append(d);
   });
@@ -163,6 +177,7 @@ function buscarCpu() {
   if (!codigo) { lista.textContent = 'Digite o patrimônio da CPU.'; return; }
   dados.forEach(s => s.postos.filter(p => p.cpu?.trim().toLocaleUpperCase('pt-BR') === codigo).forEach(p => {
     const card = item(`Setor: ${s.setor} · CPU ${p.cpu} · ${resumoCompra(p)} Monitores vinculados: ${p.patrimonios.join(', ') || 'Nenhum'}.`);
+    card.append(botao('EDITAR QUANTIDADE / MONITORES', () => editarRegistro(s, p)));
     const excluir = botao('EXCLUIR CPU E MONITORES VINCULADOS', () => {
       if (!confirm(`Excluir a CPU ${p.cpu} do setor ${s.setor} e seus monitores vinculados (${p.patrimonios.join(', ') || 'nenhum'})? Esta ação não pode ser desfeita.`)) return;
       const copia = structuredClone(dados), setor = copia.find(x => x.id === s.id);
