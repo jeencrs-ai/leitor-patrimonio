@@ -2,7 +2,7 @@
 const $ = id => document.getElementById(id), CHAVE = 'monitores_movimentacoes_v2';
 const chave = t => t.trim().toLocaleUpperCase('pt-BR');
 const mensagem = t => { $('status').textContent = t; };
-const rotulo = tipo => ({saida:'Saída',entrada:'Entrada',transferencia:'Transferência',anterior:'Sem classificação'})[tipo];
+const rotulo = tipo => ({saida:'Saída',entrada:'Entrada',transferencia:'Substituição',anterior:'Sem classificação'})[tipo];
 let editando = null, leituraCamera = false;
 let dados = {setores:[],registros:[]}, setorAtivo = null, scanner, iniciando = false, recebendo = false, armazenamentoOk = true;
 try {
@@ -22,7 +22,7 @@ function gravar(copia) {
   try { localStorage.setItem(CHAVE,JSON.stringify(copia)); dados = copia; return true; }
   catch { mensagem('Não foi possível salvar neste aparelho. Exporte os registros antes de continuar.'); return false; }
 }
-function mostrarTela(id) { ['inicioSetor','leitura','resumo'].forEach(t => $(t).classList.toggle('oculto',t !== id)); }
+function mostrarTela(id) { ['inicioSetor','leitura','telaMovimento','resumo'].forEach(t => $(t).classList.toggle('oculto',t !== id)); }
 function relacionados(r,setor) { return chave(r.setor) === chave(setor) || (r.tipo === 'transferencia' && chave(r.destino) === chave(setor)); }
 function grupos() {
   return dados.setores.map(setor => {
@@ -33,8 +33,25 @@ function grupos() {
       anterior:lista.filter(r => r.tipo === 'anterior').length};
   }).sort((a,b) => a.setor.localeCompare(b.setor,'pt-BR'));
 }
-const resumoGrupo = g => g.setor + ' · Saídas: ' + g.saida + ' · Entradas: ' + g.entrada + ' · Transferências enviadas: ' + g.enviadas + ' · Recebidas: ' + g.recebidas + (g.anterior ? ' · Sem classificação: ' + g.anterior : '');
+const resumoGrupo = g => g.setor + ' · Saídas: ' + g.saida + ' · Entradas: ' + g.entrada + ' · Substituições enviadas: ' + g.enviadas + ' · Recebidas: ' + g.recebidas + (g.anterior ? ' · Sem classificação: ' + g.anterior : '');
 function botao(texto,fn) { const b = document.createElement('button'); b.type = 'button'; b.className = 'texto-botao'; b.textContent = texto; b.onclick = fn; return b; }
+function abrirMovimento(tipo) {
+  limpar(); $('movimento').value = tipo; atualizarDestino();
+  $('tituloMovimento').textContent = tipo === 'entrada' ? 'Entrada → Novo' : tipo === 'saida' ? 'Saída → Velho' : 'Substituição';
+  $('setorMovimento').textContent = setorAtivo;
+  mostrarTela('telaMovimento'); mensagem('');
+}
+$('abrirEntrada').onclick = () => abrirMovimento('entrada');
+$('abrirSaida').onclick = () => abrirMovimento('saida');
+$('abrirSubstituicao').onclick = () => abrirMovimento('transferencia');
+$('voltarMovimento').onclick = async () => {
+  if (iniciando) return;
+  if ((editando || $('patrimonio').value || $('marca').value || $('destino').value) && !confirm('Descartar as alterações não salvas?')) return;
+  await parar(); limpar(); render(); mostrarTela('leitura'); mensagem('');
+};
+function patrimonioRepetido(patrimonio) {
+  return dados.registros.some(r => r !== editando && chave(r.patrimonio) === chave(patrimonio));
+}
 function atualizarDestino() { const transferencia = $('movimento').value === 'transferencia'; $('campoDestino').classList.toggle('oculto',!transferencia); $('destino').required = transferencia; }
 function limpar() {
   editando = null; leituraCamera = false;
@@ -52,7 +69,7 @@ function render() {
   ['setores','listaSetores','resumoSetores','registros'].forEach(id => $(id).replaceChildren());
   setores.forEach(g => {
     const opcao = document.createElement('option'); opcao.value = g.setor; $('setores').append(opcao);
-    const card = document.createElement('div'); card.className = 'item'; card.append(botao(g.setor,() => abrirSetor(g.setor))); $('listaSetores').append(card);
+    const card = document.createElement('div'); card.className = 'item'; card.append(botao(g.setor,() => abrirSetor(g.setor))); const excluir = botao('EXCLUIR SETOR',() => excluirSetor(g.setor)); excluir.className = 'botao botao-perigo'; card.append(excluir); $('listaSetores').append(card);
     const resumo = document.createElement('div'); resumo.className = 'item'; resumo.textContent = resumoGrupo(g);
     const lista = document.createElement('details'), titulo = document.createElement('summary'); titulo.textContent = 'Monitores'; lista.append(titulo);
     dados.registros.filter(r => relacionados(r,g.setor)).forEach(r => { const p = document.createElement('p'); p.textContent = descricao(r); lista.append(p); });
@@ -68,7 +85,7 @@ function render() {
       if (iniciando) return;
       if (($('patrimonio').value || $('observacao').value || $('marca').value) && !confirm('Descartar o formulário atual e editar esta leitura?')) return;
       await parar(); setorAtivo = r.setor; $('nomeSetor').textContent = r.setor; $('editarNome').value = r.setor;
-      editando = r; leituraCamera = true; $('patrimonio').value = r.patrimonio; $('marca').value = r.marca || ''; $('observacao').value = r.observacao || ''; $('movimento').value = r.tipo === 'anterior' ? 'saida' : r.tipo; $('destino').value = r.destino || '';
+      abrirMovimento(r.tipo === 'anterior' ? 'saida' : r.tipo); editando = r; leituraCamera = true; $('patrimonio').value = r.patrimonio; $('marca').value = r.marca || ''; $('observacao').value = r.observacao || ''; $('movimento').value = r.tipo === 'anterior' ? 'saida' : r.tipo; $('destino').value = r.destino || '';
       atualizarDestino(); $('salvar').textContent = 'SALVAR ALTERAÇÕES'; $('cancelarEdicao').classList.remove('oculto'); render();
     }),botao('EXCLUIR',() => {
       if (confirm('Excluir a leitura do monitor ' + r.patrimonio + '?') && gravar({...dados,registros:dados.registros.filter(x => x !== r)})) { if (editando === r) limpar(); render(); mensagem('Leitura excluída.'); }
@@ -88,13 +105,18 @@ $('renomear').onclick = () => {
   copia.registros.forEach(r => { if (chave(r.setor) === chave(setorAtivo)) r.setor = novo; if (r.destino && chave(r.destino) === chave(setorAtivo)) r.destino = novo; });
   if (gravar(copia)) { setorAtivo = novo; $('nomeSetor').textContent = novo; render(); mensagem('Nome atualizado.'); }
 };
-$('excluirSetor').onclick = async () => {
-  if (iniciando) return;
-  if (!confirm('Excluir o setor ' + setorAtivo + ' e todas as leituras vinculadas, incluindo transferências de entrada e saída?')) return;
+async function excluirSetor(setor) {
+  if (iniciando || !setor) return;
+  const quantidade = dados.registros.filter(r => relacionados(r,setor)).length;
+  if (!confirm('Excluir o setor ' + setor + ' e seus ' + quantidade + ' registro(s), incluindo substituições enviadas e recebidas? Esta ação não pode ser desfeita.')) return;
   await parar();
-  const copia = structuredClone(dados); copia.setores = copia.setores.filter(s => chave(s) !== chave(setorAtivo)); copia.registros = copia.registros.filter(r => !relacionados(r,setorAtivo));
+  const copia = structuredClone(dados);
+  copia.setores = copia.setores.filter(s => chave(s) !== chave(setor));
+  copia.registros = copia.registros.filter(r => !relacionados(r,setor));
   if (gravar(copia)) { setorAtivo = null; limpar(); render(); mostrarTela('inicioSetor'); mensagem('Setor excluído.'); }
-};
+}
+$('excluirSetor').onclick = () => excluirSetor(setorAtivo);
+
 async function voltar() {
   if (iniciando) return;
   if ((editando || $('patrimonio').value || $('marca').value || $('observacao').value || $('destino').value) && !confirm('Descartar as alterações não salvas?')) return;
@@ -118,7 +140,7 @@ $('formulario').onsubmit = event => {
   let destino = tipo === 'transferencia' ? $('destino').value.trim() : '';
   if (tipo === 'transferencia' && (!destino || chave(destino) === chave(setorAtivo))) return mensagem('Informe um setor de destino diferente da origem.');
   destino = dados.setores.find(s => chave(s) === chave(destino)) || destino;
-  if (dados.registros.some(r => r !== editando && chave(r.setor) === chave(setorAtivo) && chave(r.patrimonio) === chave(patrimonio) && r.tipo === tipo && (tipo !== 'transferencia' || chave(r.destino) === chave(destino)))) return mensagem('Este monitor já está registrado nesta movimentação.');
+  if (patrimonioRepetido(patrimonio)) return mensagem('Patrimônio já registrado. Edite ou exclua o registro existente antes de cadastrar novamente.');
   const registro = {...editando,setor:setorAtivo,patrimonio,tipo,marca,observacao,data:editando?.data || new Date().toISOString()};
   if (destino) registro.destino = destino; else delete registro.destino;
   const copia = {...dados,setores:[...dados.setores],registros:editando ? dados.registros.map(r => r === editando ? registro : r) : [...dados.registros,registro]};
@@ -140,7 +162,7 @@ $('ler').onclick = async () => {
     await scanner.start({facingMode:'environment'},{fps:10,qrbox:{width:250,height:140}},async codigo => {
       if (iniciando || recebendo || !scanner) return;
       recebendo = true;
-      try { if (!String(codigo).trim()) return; $('patrimonio').value = String(codigo).trim(); leituraCamera = true; await parar(); mensagem('Monitor lido. Toque em SALVAR MONITOR.'); $('patrimonio').focus(); }
+      try { if (!String(codigo).trim()) return; if (patrimonioRepetido(String(codigo).trim())) { mensagem('Patrimônio já registrado. Leia outro monitor ou edite o registro existente.'); return; } $('patrimonio').value = String(codigo).trim(); leituraCamera = true; await parar(); mensagem('Monitor lido. Toque em SALVAR MONITOR.'); $('patrimonio').focus(); }
       finally { recebendo = false; }
     });
     mensagem('Aponte a câmera para o código do monitor.');
@@ -157,7 +179,7 @@ $('verResumo').onclick = () => { render(); mostrarTela('resumo'); mensagem(''); 
 $('continuar').onclick = voltar;
 function textoResumo() {
   const lista = grupos();
-  return ['MONITORES — RESUMO POR SETOR',...lista.map(resumoGrupo),'TOTAL: ' + dados.registros.filter(r => r.tipo === 'saida').length + ' saída(s), ' + dados.registros.filter(r => r.tipo === 'entrada').length + ' entrada(s), ' + dados.registros.filter(r => r.tipo === 'transferencia').length + ' transferência(s).'].join('\n');
+  return ['MONITORES — RESUMO POR SETOR',...lista.map(resumoGrupo),'TOTAL: ' + dados.registros.filter(r => r.tipo === 'saida').length + ' saída(s), ' + dados.registros.filter(r => r.tipo === 'entrada').length + ' entrada(s), ' + dados.registros.filter(r => r.tipo === 'transferencia').length + ' substituição(ões).'].join('\n');
 }
 $('whatsapp').onclick = () => {
   if (!dados.setores.length) { mensagem('Cadastre um setor antes de compartilhar.'); return; }
@@ -166,7 +188,7 @@ $('whatsapp').onclick = () => {
 $('exportar').onclick = () => {
   if (!dados.setores.length) { mensagem('Cadastre um setor antes de exportar.'); return; }
   const lista = grupos();
-  const resumo = [['Departamento / Setor','Saídas','Entradas','Transferências enviadas','Transferências recebidas','Sem classificação'],...lista.map(g => [g.setor,g.saida,g.entrada,g.enviadas,g.recebidas,g.anterior]),['TOTAL',...['saida','entrada','enviadas','recebidas','anterior'].map(k => lista.reduce((n,g) => n+g[k],0))]];
+  const resumo = [['Departamento / Setor','Saídas','Entradas','Substituições enviadas','Substituições recebidas','Sem classificação'],...lista.map(g => [g.setor,g.saida,g.entrada,g.enviadas,g.recebidas,g.anterior]),['TOTAL',...['saida','entrada','enviadas','recebidas','anterior'].map(k => lista.reduce((n,g) => n+g[k],0))]];
   const linhas = [['Departamento / Setor de origem','Movimentação','Setor de destino','Patrimônio do monitor','Marca','Observação','Data/Hora'],...dados.registros.map(r => [r.setor,rotulo(r.tipo),r.destino || '',r.patrimonio,r.marca || '',r.observacao || '',new Date(r.data).toLocaleString('pt-BR')])];
   const nome = `monitores_${new Date().toLocaleDateString('sv-SE')}`;
   try {
