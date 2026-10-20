@@ -1,67 +1,7 @@
-﻿<!DOCTYPE html>
-<html lang="pt-BR">
-<head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1">
-<title>Levantamento de monitores</title>
-<link rel="stylesheet" href="style.css">
-<script src="https://unpkg.com/html5-qrcode"></script>
-<script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script>
-</head>
-<body><main class="app fluxo-troca">
-<h1>Levantamento de monitores</h1>
-<section id="inicio">
-<div class="campo"><label for="setor">Setor</label><input id="setor" autocomplete="off"></div>
-<button id="criar" class="botao botao-principal">INICIAR SETOR</button>
-<div class="etapas-leitura" style="margin-top:16px">
-<button id="abrirResumos" class="botao botao-secundario">VER RESUMOS</button>
-<button id="abrirSalvos" class="botao botao-secundario">SETORES SALVOS</button>
-<button id="abrirExcluir" class="botao botao-secundario">BUSCAR / EDITAR CPU E MONITORES</button>
-<button id="exportarTudo" class="botao botao-secundario">BAIXAR RELATÓRIO COMPLETO • EXCEL</button>
-</div>
-<details><summary>Conferências anteriores</summary><a href="troca.html">Abrir troca de plaquetas</a></details>
-</section>
-<section id="telaResumos" class="oculto">
-<button id="voltarResumos" class="texto-botao">← VOLTAR</button>
-<h2>Resumo geral</h2><div id="resumoGeral" class="resumo-linhas"></div>
-<h2>Resumo por setor</h2><div id="resumoSetores" class="lista"></div>
-</section>
-<section id="telaSalvos" class="oculto">
-<button id="voltarSalvos" class="texto-botao">← VOLTAR</button>
-<h2>Setores salvos</h2><div id="historico" class="lista"></div>
-</section>
-<section id="operacao" class="oculto">
-<header class="topo"><h2 id="titulo"></h2><button id="voltar" class="texto-botao">OUTRO SETOR</button></header>
-<p id="avisoEdicao" class="aviso-legado oculto" role="status"></p>
-<button id="lerCpu" class="botao botao-principal">LER CPU</button>
-<div class="campo"><label for="cpu">Patrimônio da CPU</label><input id="cpu" required autocomplete="off" placeholder="Leitura automática ou digitação"></div>
-<fieldset class="compra-opcoes"><legend>Quantos monitores comprar? <small>Obrigatório</small></legend><input id="quantidadeCompra" type="hidden" value=""><div class="cards-compra"><label><input type="radio" name="compra" value="1" required><span><strong>1</strong> monitor</span></label><label><input type="radio" name="compra" value="2" required><span><strong>2</strong> monitores</span></label></div></fieldset>
-<details class="monitores-detalhes"><summary>Vincular monitores velhos para substituição</summary>
-<div class="campo"><label for="marca">Marca do monitor velho</label><input id="marca" autocomplete="off" placeholder="Ex.: Dell, LG, Samsung"></div>
-<button id="ler" class="botao botao-secundario">+ LER PATRIMÔNIO VELHO</button>
-<div id="patrimonios" class="lista"></div>
-</details>
-<p id="previsao" class="status" aria-live="polite"></p>
-<button id="salvar" class="botao botao-principal">FINALIZAR CPU</button>
-<button id="cancelar" class="texto-botao">LIMPAR / CANCELAR</button>
-<details open><summary>CPUs salvas — editar quantidade ou excluir monitores</summary><div id="totais" class="resumo-linhas"></div><div id="postos" class="lista"></div></details>
-<details><summary>Exportação deste setor</summary><button id="exportar" class="botao botao-secundario">EXPORTAR SETOR</button></details>
-<button id="finalizarSetor" class="botao botao-principal">FINALIZAR SETOR E VOLTAR AO INÍCIO</button>
-</section>
-<section id="telaConfirmacao" class="oculto">
-<p class="selo-sucesso">✓ Salvo neste aparelho</p><h2>CPU finalizada</h2><div id="confirmacaoCpu" class="item"></div>
-<button id="proximaCpu" class="botao botao-principal">CADASTRAR PRÓXIMA CPU</button><button id="voltarSetor" class="botao botao-secundario">VOLTAR AO SETOR</button>
-</section>
-<section id="telaExcluir" class="oculto">
-<button id="voltarExcluir" class="texto-botao">← VOLTAR</button><h2>Buscar CPU e monitores</h2><p>Localize a CPU em todos os setores para alterar a quantidade a comprar ou excluir monitores vinculados. Excluir a CPU também remove seus monitores vinculados.</p>
-<div class="campo"><label for="buscaCpu">Patrimônio da CPU</label><input id="buscaCpu" autocomplete="off" placeholder="Digite o patrimônio completo"></div><button id="buscarCpu" class="botao botao-principal">BUSCAR CPU</button><div id="resultadoCpu" class="lista" aria-live="polite"></div>
-</section>
-<section id="telaLeitura" class="oculto">
-<header class="topo"><h2 id="tituloLeitura">Ler patrimônio</h2><button id="parar" class="texto-botao">← VOLTAR</button></header>
-<p id="ajudaLeitura">Aponte a câmera para o código de barras.</p>
-<div class="camera"><div id="reader"></div></div>
-<p id="statusLeitor" class="status" role="status"></p>
-<div class="manual-rapido"><label for="codigo">Ou digite o patrimônio</label><div><input id="codigo" autocomplete="off"><button id="adicionar">CONFIRMAR</button></div></div>
-</section>
-<p id="status" class="status" role="status" aria-live="polite"></p>
-</main><script src="levantamento.js?v=20261019-1"></script></body></html>
+<!DOCTYPE html>
+<html lang="pt-BR"><head><meta charset="UTF-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Monitores por setor</title><link rel="stylesheet" href="style.css"><script src="https://unpkg.com/html5-qrcode"></script><script src="https://cdn.sheetjs.com/xlsx-0.20.3/package/dist/xlsx.full.min.js"></script></head>
+<body><main class="app fluxo-troca"><h1>Monitores por setor</h1>
+<section id="inicioSetor"><form id="formSetor"><div class="campo"><label for="setor">Nome do setor / departamento</label><input id="setor" required list="setores" autocomplete="off"><datalist id="setores"></datalist></div><button class="botao botao-principal">ABRIR SETOR</button></form><button id="verResumo" class="botao botao-secundario">VER RESUMO POR SETOR</button><h2>Setores salvos</h2><div id="listaSetores" class="lista"></div></section>
+<section id="leitura" class="oculto"><button id="voltarSetores" class="texto-botao">← SETORES</button><h2 id="nomeSetor"></h2><details><summary>Gerenciar setor</summary><div class="campo"><label for="editarNome">Nome do setor</label><input id="editarNome"></div><button id="renomear" class="texto-botao">SALVAR NOME</button><button id="excluirSetor" class="texto-botao">EXCLUIR SETOR</button></details><form id="formulario"><div class="campo"><label for="movimento">Movimentação</label><select id="movimento"><option value="saida">Saída</option><option value="entrada">Entrada</option><option value="transferencia">Transferência entre setores</option></select></div><div id="campoDestino" class="campo oculto"><label for="destino">Setor de destino</label><input id="destino" list="setores" autocomplete="off"></div><button id="ler" type="button" class="botao botao-principal">LER MONITOR COM A CÂMERA</button><div id="camera" class="oculto"><div id="reader"></div><button id="parar" type="button">FECHAR CÂMERA</button></div><div class="campo"><label for="patrimonio">Patrimônio do monitor</label><input id="patrimonio" readonly placeholder="Use a câmera para ler"></div><div class="campo"><label for="marca">Marca do monitor</label><input id="marca" required autocomplete="off" placeholder="Ex.: Dell, LG, Samsung"></div><div class="campo"><label for="observacao">Observação (opcional)</label><textarea id="observacao" rows="2"></textarea></div><button id="salvar" class="botao botao-principal">SALVAR</button><button id="cancelarEdicao" type="button" class="texto-botao oculto">CANCELAR EDIÇÃO</button></form><p id="contador"></p><button id="finalizar" class="botao botao-secundario">VER RESUMO</button><details><summary>Histórico de monitores</summary><div id="registros" class="lista"></div></details></section>
+<section id="resumo" class="oculto"><h2>Resumo por setor</h2><p id="total"></p><div id="resumoSetores" class="lista"></div><button id="exportar" class="botao botao-principal">EXPORTAR PARA EXCEL</button><button id="whatsapp" class="botao botao-secundario">ENVIAR RESUMO PELO WHATSAPP</button><button id="continuar" class="botao botao-secundario">VOLTAR AOS SETORES</button></section>
+<p id="status" class="status" role="status" aria-live="polite"></p></main><script src="leitura.js?v=20261020-1"></script></body></html>
