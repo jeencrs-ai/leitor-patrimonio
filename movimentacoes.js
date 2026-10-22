@@ -84,6 +84,38 @@ function campo(id,container) {
   const input = document.createElement('input'); input.id = id; input.autocomplete = 'off'; input.placeholder = 'Digite o patrimônio';
   const ajuda = document.createElement('small'); ajuda.className = 'ajuda-campo'; ajuda.textContent = 'Digite a plaqueta neste campo ou use a câmera. Você pode corrigir o código após a leitura.';
   topo.append(label,ler); bloco.append(topo,input,ajuda); $(container).append(bloco);
+  if (container === 'camposEntrada') criarMarcas(id,bloco);
+}
+function criarMarcas(id,container) {
+  const grupo = document.createElement('fieldset'); grupo.className = 'marcas';
+  const legenda = document.createElement('legend'); legenda.textContent = `Marca de ${nomesCampos[id]} · opcional`; grupo.append(legenda);
+  const cards = document.createElement('div'); cards.className = 'cards-marcas';
+  ['Positivo','AOC','Lenovo','Outros'].forEach(marca => {
+    const label = document.createElement('label'); label.className = 'opcao';
+    const radio = document.createElement('input'); radio.type = 'radio'; radio.name = `marca_${id}`; radio.value = marca;
+    radio.onchange = atualizarMarcas;
+    const texto = document.createElement('span'); texto.textContent = marca;
+    label.append(radio,texto); cards.append(label);
+  });
+  const outro = document.createElement('div'); outro.id = `outraMarcaBox_${id}`; outro.hidden = true;
+  const label = document.createElement('label'); label.htmlFor = `outraMarca_${id}`; label.textContent = 'Qual marca?';
+  const input = document.createElement('input'); input.id = `outraMarca_${id}`; input.autocomplete = 'off'; input.placeholder = 'Digite a marca';
+  outro.append(label,input); grupo.append(cards,outro); container.append(grupo);
+}
+function atualizarMarcas() {
+  ['cpu','monitor1','monitor2'].forEach(id => {
+    const entrada = modo === 'ENTRADA';
+    document.querySelectorAll(`input[name="marca_${id}"]`).forEach(c => { c.disabled = !entrada; });
+    const outros = entrada && document.querySelector(`input[name="marca_${id}"]:checked`)?.value === 'Outros';
+    $(`outraMarcaBox_${id}`).hidden = !outros;
+    $(`outraMarca_${id}`).disabled = !outros; $(`outraMarca_${id}`).required = outros;
+  });
+}
+function lerMarcas() {
+  return Object.fromEntries(['cpu','monitor1','monitor2'].map(id => {
+    const valor = document.querySelector(`input[name="marca_${id}"]:checked`)?.value || '';
+    return [id,valor === 'Outros' ? $(`outraMarca_${id}`).value.trim() : valor];
+  }));
 }
 function configurarModo(novoModo, voltar = 'operacao') {
   retornoCadastro = voltar;
@@ -101,13 +133,14 @@ function configurarModo(novoModo, voltar = 'operacao') {
   tela('cadastro');
 }
 function atualizarOrigem() {
+  atualizarMarcas();
   const doacao = modo === 'SAÍDA' && document.querySelector('input[name=tipo]:checked')?.value === 'DOAÇÃO';
   const seminovo = modo === 'SAÍDA' && document.querySelector('input[name=tipo]:checked')?.value === 'SEMINOVO';
   $('destinoBox').hidden = !seminovo; $('destino').required = seminovo; $('destino').disabled = !seminovo;
   $('origemBox').hidden = !doacao; $('origem').required = doacao; $('origem').disabled = !doacao;
 }
 function preenchido() {
-  return ['cpu','monitor1','monitor2','patrimonio','origem','destino'].some(id => !$(id).disabled && $(id).value.trim()) || !!document.querySelector('input[name=tipo]:checked');
+  return ['cpu','monitor1','monitor2','patrimonio','origem','destino'].some(id => !$(id).disabled && $(id).value.trim()) || !!document.querySelector('input[name=tipo]:checked') || (modo === 'ENTRADA' && Object.values(lerMarcas()).some(Boolean));
 }
 function detalhes(r) {
   return r.movimento === 'ENTRADA' ? ['cpu','monitor1','monitor2'].map(id => `${nomesCampos[id]}: ${r[id] || 'Não informado'}`).join('\n') : `Patrimônio: ${r.patrimonio}\n${r.tipo === 'DOAÇÃO' ? 'Setor de origem: ' + r.origem : r.tipo === 'SEMINOVO' ? 'Setor de destino: ' + r.destino : r.tipo === 'VELHO' ? 'Equipamento velho' : 'Retirada por baixa'}`;
@@ -119,6 +152,7 @@ async function salvar(evento) {
   const anterior = registros.find(r => r.id === editandoId);
   const r = {...anterior,id:editandoId || crypto.randomUUID(),setor,movimento:modo,data:anterior?.data || new Date().toISOString()};
   if (modo === 'ENTRADA') {
+    r.marcas = lerMarcas();
     ['cpu','monitor1','monitor2'].forEach(id => r[id] = $(id).value.trim());
     const codigos = [r.cpu,r.monitor1,r.monitor2].filter(Boolean).map(normalizar);
     if (new Set(codigos).size !== codigos.length) return msg('CPU e monitores devem ter patrimônios diferentes.');
@@ -142,7 +176,7 @@ async function salvar(evento) {
 function dadosRegistro(r) {
   const dl = document.createElement('dl'); dl.className = 'dados-registro';
   const campos = [['Setor',r.setor],['Movimentação',r.movimento]];
-  if (r.movimento === 'ENTRADA') ['cpu','monitor1','monitor2'].forEach(id => campos.push([nomesCampos[id],r[id] || 'Não informado']));
+  if (r.movimento === 'ENTRADA') ['cpu','monitor1','monitor2'].forEach(id => { campos.push([nomesCampos[id],r[id] || 'Não informado']); if (r.marcas?.[id]) campos.push([`Marca de ${nomesCampos[id]}`,r.marcas[id]]); });
   else {
     campos.push(['Condição / motivo',r.tipo],['Patrimônio',r.patrimonio]);
     if (r.destino) campos.push(['Setor de destino',r.destino]);
@@ -197,6 +231,11 @@ function editarRegistro(id, voltar = 'resumo') {
   const r = registros.find(x => x.id === id); if (!r) return;
   setor = r.setor; $('nomeSetor').textContent = setor; configurarModo(r.movimento, voltar); editandoId = id;
   ['cpu','monitor1','monitor2','patrimonio','origem','destino'].forEach(c => { $(c).value = r[c] || ''; });
+  ['cpu','monitor1','monitor2'].forEach(id => {
+    const marca = r.marcas?.[id] || '', padrao = ['Positivo','AOC','Lenovo'].includes(marca);
+    document.querySelectorAll(`input[name="marca_${id}"]`).forEach(c => { c.checked = !!marca && c.value === (padrao ? marca : 'Outros'); });
+    $(`outraMarca_${id}`).value = padrao ? '' : marca;
+  });
   const tipo = r.tipo === 'BAIXA' ? 'VELHO' : r.tipo === 'DOAÇÃO' ? 'SEMINOVO' : r.tipo;
   document.querySelectorAll('input[name=tipo]').forEach(c => { c.checked = c.value === tipo; });
   atualizarOrigem(); $('salvar').textContent = 'Salvar alterações';
@@ -229,8 +268,8 @@ function exportar() {
   if (!registros.length) return msg('Nenhum registro salvo para exportar.');
   if (!window.XLSX?.utils) return msg('O Excel não carregou. Conecte-se à internet e recarregue para exportar.');
   try {
-    const cabecalho = ['Setor','Movimentação','Condição / motivo da saída','CPU','Monitor 1','Monitor 2','Patrimônio de saída','Setor de origem (anterior)','Setor de destino','Data e hora'];
-    const linhas = registros.map(r => [r.setor,r.movimento,r.tipo || '',r.cpu || '',r.monitor1 || '',r.monitor2 || '',r.patrimonio || '',r.origem || '',r.destino || '',new Date(r.data).toLocaleString('pt-BR')]);
+    const cabecalho = ['Setor','Movimentação','Condição / motivo da saída','CPU','Monitor 1','Monitor 2','Patrimônio de saída','Setor de origem (anterior)','Setor de destino','Data e hora','Marca CPU','Marca Monitor 1','Marca Monitor 2'];
+    const linhas = registros.map(r => [r.setor,r.movimento,r.tipo || '',r.cpu || '',r.monitor1 || '',r.monitor2 || '',r.patrimonio || '',r.origem || '',r.destino || '',new Date(r.data).toLocaleString('pt-BR'),r.marcas?.cpu || '',r.marcas?.monitor1 || '',r.marcas?.monitor2 || '']);
     const resumo = [['Setor','Computadores novos','Velhos','Doa\u00e7\u00f5es','CPUs novas informadas','Monitores novos informados']];
     gruposResumo(registros).forEach(g => resumo.push([g.setor,g.novos,g.velhos,g.doacoes,g.cpus,g.monitores]));
     const total = contarResumo(registros); resumo.push(['TOTAL GERAL',total.novos,total.velhos,total.doacoes,total.cpus,total.monitores]);
