@@ -53,6 +53,28 @@ function atualizarSetores() {
     const escolha = document.createElement('option'); escolha.value = nome; escolha.textContent = nome; $('renomear').append(escolha);
   });
   if (filtroSetor) $('renomear').value = filtroSetor;
+  renderSetoresSalvos();
+}
+function abrirSetorSalvo(nome) {
+  setor = nome; $('setor').value = nome; $('nomeSetor').textContent = nome;
+  editandoId = null; atualizarSetores(); tela('operacao');
+}
+function corrigirSetor(nome) {
+  abrirResumo(nome,'inicio'); $('renomear').value = nome; $('novoNome').value = nome;
+  $('configSetor').open = true; $('novoNome').focus();
+}
+function renderSetoresSalvos() {
+  const lista = $('setoresSalvos'); lista.replaceChildren();
+  gruposResumo(registros).forEach(g => {
+    const card = document.createElement('article'); card.className = 'registro';
+    const titulo = document.createElement('h3'); titulo.textContent = g.setor;
+    const info = document.createElement('p'); info.textContent = `${g.novos} novos · ${g.velhos} velhos · ${g.doacoes} doações`;
+    const abrir = document.createElement('button'); abrir.className = 'primario'; abrir.textContent = 'Abrir setor / adicionar item'; abrir.onclick = () => abrirSetorSalvo(g.setor);
+    const editar = document.createElement('button'); editar.className = 'secundario'; editar.textContent = 'Ver e editar dados'; editar.onclick = () => abrirResumo(g.setor,'inicio');
+    const nome = document.createElement('button'); nome.className = 'voltar'; nome.textContent = 'Corrigir nome do setor'; nome.onclick = () => corrigirSetor(g.setor);
+    card.append(titulo,info,abrir,editar,nome); lista.append(card);
+  });
+  if (!lista.children.length) lista.textContent = 'Os setores com registros salvos aparecerão aqui.';
 }
 function campo(id,container) {
   const bloco = document.createElement('div'); bloco.className = 'campo-patrimonio';
@@ -155,7 +177,8 @@ function renderResumo() {
     [['Computadores novos',g.novos],['Velhos',g.velhos],['Doa\u00e7\u00f5es',g.doacoes],['CPUs novas informadas',g.cpus],['Monitores novos informados',g.monitores]].forEach(([nome,total]) => {
       const linha = document.createElement('div'), dt = document.createElement('dt'), dd = document.createElement('dd'); dt.textContent = nome; dd.textContent = total; linha.append(dt,dd); dl.append(linha);
     });
-    card.append(titulo,dl); $('resumoPorSetor').append(card);
+    const abrir = document.createElement('button'); abrir.className = 'secundario'; abrir.textContent = 'Abrir setor / adicionar item'; abrir.onclick = () => abrirSetorSalvo(g.setor);
+    card.append(titulo,dl,abrir); $('resumoPorSetor').append(card);
   });
   if (!lista.length) $('resumoPorSetor').textContent = 'Nenhum registro salvo.';
   $('registros').replaceChildren();
@@ -240,7 +263,7 @@ async function fecharCamera() {
   $('reader').replaceChildren(); if (destinoCamera) $(destinoCamera).focus();
 }
 ['cpu','monitor1','monitor2'].forEach(id => campo(id,'camposEntrada')); campo('patrimonio','camposSaida');
-$('formSetor').onsubmit = e => { e.preventDefault(); const nome = $('setor').value.trim(); if (!nome) return msg('Informe o setor.'); setor = registros.find(r => normalizar(r.setor) === normalizar(nome))?.setor || nome; $('nomeSetor').textContent = setor; atualizarSetores(); tela('operacao'); };
+$('formSetor').onsubmit = e => { e.preventDefault(); const nome = $('setor').value.trim(); if (!nome) return msg('Informe o setor.'); abrirSetorSalvo(registros.find(r => normalizar(r.setor) === normalizar(nome))?.setor || nome); };
 $('entradaCard').onclick = () => configurarModo('ENTRADA'); $('saidaCard').onclick = () => configurarModo('SAÍDA');
 $('formMovimento').onsubmit = salvar;
 document.querySelectorAll('input[name=tipo]').forEach(r => r.onchange = atualizarOrigem);
