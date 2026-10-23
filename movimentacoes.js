@@ -36,7 +36,7 @@ function validarDuplicidade(r, lista) {
   const entrada = r.movimento === 'ENTRADA';
   if (!entrada && !['VELHO','BAIXA'].includes(r.tipo)) return '';
   const codigos = (entrada ? [r.cpu,r.monitor1,r.monitor2] : [r.patrimonio]).filter(v => v?.trim()).map(normalizar);
-  if (new Set(codigos).size !== codigos.length) return 'Os patrimônios da entrada devem ser diferentes entre si.';
+  if (new Set(codigos).size !== codigos.length) return `Patrimônio ${codigos.find((c,i) => codigos.indexOf(c) !== i)} repetido nesta entrada. CPU e monitores devem ter patrimônios diferentes.`;
   for (const outro of lista) {
     if (outro.id === r.id) continue;
     if (entrada ? outro.movimento !== 'ENTRADA' : outro.movimento !== 'SAÍDA' || !['VELHO','BAIXA'].includes(outro.tipo)) continue;
@@ -45,6 +45,22 @@ function validarDuplicidade(r, lista) {
     if (repetido) return `Patrimônio ${repetido} já registrado em ${entrada ? 'entrada de novo' : 'saída de velho'} no setor ${outro.setor}. Edite o registro existente.`;
   }
   return '';
+}
+let campoDuplicado = null;
+function alertarDuplicidade(erro,campo) {
+  msg(erro);
+  campoDuplicado = campo || ['cpu','monitor1','monitor2','patrimonio'].map($).find(c => !c.disabled && c.value.trim() && erro.includes(normalizar(c.value)));
+  $('mensagemDuplicidade').textContent = erro;
+  if (!$('alertaDuplicidade').open) $('alertaDuplicidade').showModal();
+  $('corrigirDuplicidade').focus();
+}
+function verificarCamposDigitados(campo) {
+  if (!['cpu','monitor1','monitor2','patrimonio'].includes(campo.id) || !campo.value.trim()) return true;
+  const candidato = {id:editandoId,movimento:modo,tipo:document.querySelector('input[name=tipo]:checked')?.value};
+  ['cpu','monitor1','monitor2','patrimonio'].forEach(id => { candidato[id] = $(id).value.trim(); });
+  const erro = validarDuplicidade(candidato,registros);
+  if (!erro) return true;
+  alertarDuplicidade(erro,campo); return false;
 }
 function atualizarSetores() {
   $('setores').replaceChildren(); $('renomear').replaceChildren();
@@ -77,6 +93,11 @@ function renderSetoresSalvos() {
   if (!lista.children.length) lista.textContent = 'Os setores com registros salvos aparecerão aqui.';
 }
 function campo(id,container) {
+  if (container === 'camposEntrada') {
+    $(`ler_${id}`).onclick = () => abrirCamera(id);
+    document.querySelectorAll(`input[name="marca_${id}"]`).forEach(c => { c.onchange = atualizarMarcas; });
+    return;
+  }
   const bloco = document.createElement('div'); bloco.className = 'campo-patrimonio';
   const topo = document.createElement('div'); topo.className = 'campo-topo';
   const label = document.createElement('label'); label.htmlFor = id; label.textContent = nomesCampos[id] + (id === 'patrimonio' ? ' *' : ' · opcional');
@@ -84,23 +105,6 @@ function campo(id,container) {
   const input = document.createElement('input'); input.id = id; input.autocomplete = 'off'; input.placeholder = 'Digite o patrimônio';
   const ajuda = document.createElement('small'); ajuda.className = 'ajuda-campo'; ajuda.textContent = 'Digite a plaqueta neste campo ou use a câmera. Você pode corrigir o código após a leitura.';
   topo.append(label,ler); bloco.append(topo,input,ajuda); $(container).append(bloco);
-  if (container === 'camposEntrada') criarMarcas(id,bloco);
-}
-function criarMarcas(id,container) {
-  const grupo = document.createElement('fieldset'); grupo.className = 'marcas';
-  const legenda = document.createElement('legend'); legenda.textContent = `Marca de ${nomesCampos[id]} · opcional`; grupo.append(legenda);
-  const cards = document.createElement('div'); cards.className = 'cards-marcas';
-  ['Positivo','AOC','Lenovo','Outros'].forEach(marca => {
-    const label = document.createElement('label'); label.className = 'opcao';
-    const radio = document.createElement('input'); radio.type = 'radio'; radio.name = `marca_${id}`; radio.value = marca;
-    radio.onchange = atualizarMarcas;
-    const texto = document.createElement('span'); texto.textContent = marca;
-    label.append(radio,texto); cards.append(label);
-  });
-  const outro = document.createElement('div'); outro.id = `outraMarcaBox_${id}`; outro.hidden = true;
-  const label = document.createElement('label'); label.htmlFor = `outraMarca_${id}`; label.textContent = 'Qual marca?';
-  const input = document.createElement('input'); input.id = `outraMarca_${id}`; input.autocomplete = 'off'; input.placeholder = 'Digite a marca';
-  outro.append(label,input); grupo.append(cards,outro); container.append(grupo);
 }
 function atualizarMarcas() {
   ['cpu','monitor1','monitor2'].forEach(id => {
@@ -117,6 +121,37 @@ function lerMarcas() {
     return [id,valor === 'Outros' ? $(`outraMarca_${id}`).value.trim() : valor];
   }));
 }
+function focarProximo(elemento) {
+  if (!elemento || elemento.disabled) return;
+  elemento.focus();
+  elemento.closest('.campo-patrimonio')?.scrollIntoView({behavior:'smooth',block:'nearest'});
+}
+function proximoEquipamento(id) {
+  const campos = ['cpu','monitor1','monitor2'];
+  focarProximo($(campos[campos.indexOf(id)+1] || 'salvar'));
+}
+function avancarCampo(campo) {
+  if (!verificarCamposDigitados(campo)) return;
+  if (['cpu','monitor1','monitor2'].includes(campo.id)) {
+    focarProximo(document.querySelector(`input[name="marca_${campo.id}"]:checked`) || document.querySelector(`input[name="marca_${campo.id}"]`));
+  } else if (campo.name?.startsWith('marca_')) {
+    campo.checked = true;
+    const id = campo.name.slice(6);
+    atualizarMarcas();
+    if (campo.value === 'Outros') focarProximo($(`outraMarca_${id}`));
+    else proximoEquipamento(id);
+  } else if (campo.id?.startsWith('outraMarca_')) {
+    if (!campo.reportValidity()) return;
+    proximoEquipamento(campo.id.slice(11));
+  } else if (campo.name === 'tipo') {
+    campo.checked = true;
+    atualizarOrigem(); focarProximo($(campo.value === 'SEMINOVO' ? 'destino' : 'patrimonio'));
+  } else if (['origem','destino'].includes(campo.id)) {
+    if (campo.reportValidity()) focarProximo($('patrimonio'));
+  } else if (campo.id === 'patrimonio') {
+    if (campo.reportValidity()) focarProximo($('salvar'));
+  }
+}
 function configurarModo(novoModo, voltar = 'operacao') {
   retornoCadastro = voltar;
   $('voltarCadastro').textContent = voltar === 'resumo' ? '← Voltar aos registros' : voltar === 'confirmacao' ? '← Voltar à confirmação' : '← Movimentações';
@@ -131,6 +166,7 @@ function configurarModo(novoModo, voltar = 'operacao') {
   $('rotuloFormulario').textContent = setor;
   $('tituloFormulario').textContent = entrada ? 'Entrada · Computador novo' : 'Saída · Velho ou Seminovo';
   tela('cadastro');
+  focarProximo(entrada ? $('cpu') : document.querySelector('input[name=tipo]'));
 }
 function atualizarOrigem() {
   atualizarMarcas();
@@ -154,8 +190,6 @@ async function salvar(evento) {
   if (modo === 'ENTRADA') {
     r.marcas = lerMarcas();
     ['cpu','monitor1','monitor2'].forEach(id => r[id] = $(id).value.trim());
-    const codigos = [r.cpu,r.monitor1,r.monitor2].filter(Boolean).map(normalizar);
-    if (new Set(codigos).size !== codigos.length) return msg('CPU e monitores devem ter patrimônios diferentes.');
   } else {
     r.tipo = document.querySelector('input[name=tipo]:checked')?.value;
     r.destino = r.tipo === 'SEMINOVO' ? $('destino').value.trim() : '';
@@ -163,7 +197,7 @@ async function salvar(evento) {
     if (!['VELHO','SEMINOVO','BAIXA','DOAÇÃO'].includes(r.tipo) || !r.patrimonio || (r.tipo === 'SEMINOVO' && !r.destino) || (r.tipo === 'DOAÇÃO' && !r.origem)) return msg('Preencha o patrimônio e a condição. Para seminovo, informe o setor de destino.');
   }
   const erroDuplicidade = validarDuplicidade(r,registros);
-  if (erroDuplicidade) return msg(erroDuplicidade);
+  if (erroDuplicidade) return alertarDuplicidade(erroDuplicidade);
   if (!await gravar(editandoId ? registros.map(x => x.id === editandoId ? r : x) : [...registros,r])) return;
   ultimoSalvoId = r.id;
   if (retornoCadastro !== 'confirmacao') retornoConfirmacao = retornoCadastro === 'resumo' ? 'resumo' : 'operacao';
@@ -264,6 +298,40 @@ $('executarExclusao').onclick = async () => {
   if (!await gravar(registros.filter(r => r.id !== id))) { $('confirmarExclusao').close(); return; }
   $('confirmarExclusao').close(); renderExclusao(); msg('Registro excluído.');
 };
+function relatorioMonitores(lista) {
+  const grupos = new Map();
+  lista.filter(r => r.movimento === 'ENTRADA').forEach(r => {
+    const monitores = ['monitor1','monitor2'].filter(id => r[id]?.trim()).map(id => ({patrimonio:r[id].trim(),marca:r.marcas?.[id] || ''}));
+    if (!monitores.length) return;
+    const chave = normalizar(r.setor);
+    if (!grupos.has(chave)) grupos.set(chave,{setor:r.setor,itens:[]});
+    grupos.get(chave).itens.push(...monitores);
+  });
+  const setores = [...grupos.values()].sort((a,b) => a.setor.localeCompare(b.setor,'pt-BR'));
+  if (!setores.length) return '';
+  const total = setores.reduce((n,g) => n+g.itens.length,0);
+  const linhas = ['*RELATÓRIO DE MONITORES NOVOS*',`Total: ${total} monitor(es) | ${setores.length} setor(es)`,''];
+  setores.forEach(g => {
+    linhas.push(`*${g.setor} — ${g.itens.length} monitor(es)*`);
+    g.itens.forEach(m => linhas.push(`Monitor: ${m.patrimonio}${m.marca ? ' · ' + m.marca : ''}`));
+    linhas.push('');
+  });
+  return linhas.join('\n').trim();
+}
+$('abrirRelatorioMonitores').onclick = () => {
+  const lista = registros.filter(r => !filtroSetor || normalizar(r.setor) === normalizar(filtroSetor));
+  const texto = relatorioMonitores(lista);
+  if (!texto) return msg('Não há patrimônios de monitores informados neste resumo.');
+  $('textoRelatorioMonitores').value = texto;
+  $('whatsappMonitores').href = `https://wa.me/?text=${encodeURIComponent(texto)}`;
+  $('statusRelatorioMonitores').textContent = '';
+  $('relatorioMonitores').showModal();
+};
+$('fecharRelatorioMonitores').onclick = () => $('relatorioMonitores').close();
+$('copiarRelatorioMonitores').onclick = async () => {
+  try { await navigator.clipboard.writeText($('textoRelatorioMonitores').value); $('statusRelatorioMonitores').textContent = 'Resumo copiado. Cole na conversa do WhatsApp.'; }
+  catch { $('textoRelatorioMonitores').focus(); $('textoRelatorioMonitores').select(); $('statusRelatorioMonitores').textContent = 'Texto selecionado. Use Copiar e cole no WhatsApp.'; }
+};
 function exportar() {
   if (!registros.length) return msg('Nenhum registro salvo para exportar.');
   if (!window.XLSX?.utils) return msg('O Excel não carregou. Conecte-se à internet e recarregue para exportar.');
@@ -305,6 +373,22 @@ async function fecharCamera() {
 $('formSetor').onsubmit = e => { e.preventDefault(); const nome = $('setor').value.trim(); if (!nome) return msg('Informe o setor.'); abrirSetorSalvo(registros.find(r => normalizar(r.setor) === normalizar(nome))?.setor || nome); };
 $('entradaCard').onclick = () => configurarModo('ENTRADA'); $('saidaCard').onclick = () => configurarModo('SAÍDA');
 $('formMovimento').onsubmit = salvar;
+function fecharAlertaDuplicidade() {
+  $('alertaDuplicidade').close();
+  if (campoDuplicado) { campoDuplicado.focus(); campoDuplicado.select(); }
+}
+$('corrigirDuplicidade').onclick = fecharAlertaDuplicidade;
+$('alertaDuplicidade').addEventListener('cancel',e => { e.preventDefault(); fecharAlertaDuplicidade(); });
+$('formMovimento').addEventListener('keydown',e => {
+  if (e.key !== 'Enter' || e.isComposing || e.target.tagName !== 'INPUT') return;
+  e.preventDefault(); avancarCampo(e.target);
+});
+document.querySelectorAll('#formMovimento input[type=radio]').forEach(campo => {
+  campo.addEventListener('click',() => avancarCampo(campo));
+});
+['cpu','monitor1','monitor2','outraMarca_cpu','outraMarca_monitor1','outraMarca_monitor2','origem','destino','patrimonio'].forEach(id => {
+  $(id).enterKeyHint = 'next';
+});
 document.querySelectorAll('input[name=tipo]').forEach(r => r.onchange = atualizarOrigem);
 $('limpar').onclick = () => { if (!preenchido() || confirm('Limpar os campos ainda não salvos?')) { $('formMovimento').reset(); atualizarOrigem(); msg('Campos limpos.'); } };
 $('voltarCadastro').onclick = () => { if (!preenchido() || confirm('Voltar sem salvar as alterações deste formulário?')) { $('formMovimento').reset(); editandoId = null; if (retornoCadastro === 'resumo') renderResumo(); tela(retornoCadastro); } };
