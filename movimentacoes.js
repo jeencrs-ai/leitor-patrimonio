@@ -8,7 +8,7 @@ const msg = texto => $('status').textContent = texto;
 const normalizar = texto => texto.trim().toLocaleUpperCase('pt-BR');
 const nomesCampos = {cpu:'CPU',monitor1:'Monitor 1',monitor2:'Monitor 2',patrimonio:'Patrimônio de saída'};
 function tela(id) {
-  ['inicio','operacao','cadastro','confirmacao','resumo','exclusao'].forEach(x => $(x).hidden = x !== id);
+  ['inicio','operacao','cadastro','confirmacao','resumo','exclusao','consulta'].forEach(x => $(x).hidden = x !== id);
   msg(''); window.scrollTo(0,0);
 }
 async function gravar(copia) {
@@ -297,6 +297,46 @@ $('executarExclusao').onclick = async () => {
   if (!registros.some(r => r.id === id)) return;
   if (!await gravar(registros.filter(r => r.id !== id))) { $('confirmarExclusao').close(); return; }
   $('confirmarExclusao').close(); renderExclusao(); msg('Registro excluído.');
+};
+function consultarPatrimonio(codigo,lista) {
+  const chave = normalizar(codigo);
+  if (!chave) return [];
+  const resultados = [];
+  lista.forEach(r => {
+    const campos = r.movimento === 'ENTRADA' ? ['cpu','monitor1','monitor2'] : ['patrimonio'];
+    campos.forEach(campo => {
+      if (!r[campo]?.trim() || normalizar(r[campo]) !== chave) return;
+      resultados.push({patrimonio:r[campo].trim(),marca:r.marcas?.[campo] || (campo === 'patrimonio' ? r.marca : '') || 'Não informada',setor:r.setor,equipamento:nomesCampos[campo],movimento:r.movimento,tipo:r.tipo,destino:r.destino,data:r.data});
+    });
+  });
+  return resultados.sort((a,b) => (b.data || '').localeCompare(a.data || ''));
+}
+let retornoConsulta = 'inicio';
+function abrirConsulta(voltar) {
+  retornoConsulta = voltar; $('patrimonioConsulta').value = ''; $('resultadoConsulta').replaceChildren();
+  $('statusConsulta').textContent = 'Digite a plaqueta completa para consultar todos os setores.';
+  tela('consulta'); $('patrimonioConsulta').focus();
+}
+$('consultarInicio').onclick = () => abrirConsulta('inicio');
+$('consultarSetor').onclick = () => abrirConsulta('operacao');
+$('voltarConsulta').onclick = () => tela(retornoConsulta);
+$('patrimonioConsulta').oninput = () => { $('resultadoConsulta').replaceChildren(); $('statusConsulta').textContent = ''; };
+$('formConsulta').onsubmit = e => {
+  e.preventDefault(); $('resultadoConsulta').replaceChildren();
+  const codigo = $('patrimonioConsulta').value.trim();
+  if (!codigo) { $('statusConsulta').textContent = 'Informe o patrimônio.'; return; }
+  if (!banco || indisponivel) { $('statusConsulta').textContent = 'Banco indisponível ou carregando. Aguarde a abertura do IndexedDB para consultar.'; return; }
+  const resultados = consultarPatrimonio(codigo,registros);
+  $('statusConsulta').textContent = resultados.length ? `${resultados.length} ocorrência(s) encontrada(s). Setores correspondem aos registros de cada movimentação.` : 'Patrimônio não encontrado nos registros deste aparelho.';
+  resultados.forEach(r => {
+    const card = document.createElement('article'); card.className = 'registro';
+    const titulo = document.createElement('h3'); titulo.textContent = r.movimento === 'ENTRADA' ? r.equipamento : 'Equipamento de saída';
+    const dl = document.createElement('dl'); dl.className = 'dados-registro';
+    const dados = [['Patrimônio',r.patrimonio],['Marca',r.marca],['Setor',r.setor],['Movimentação',r.tipo ? `${r.movimento} · ${r.tipo}` : r.movimento]];
+    if (r.destino) dados.push(['Setor de destino',r.destino]);
+    dados.forEach(([nome,valor]) => { const linha = document.createElement('div'),dt = document.createElement('dt'),dd = document.createElement('dd'); dt.textContent = nome; dd.textContent = valor; linha.append(dt,dd); dl.append(linha); });
+    card.append(titulo,dl); $('resultadoConsulta').append(card);
+  });
 };
 function relatorioMonitores(lista) {
   const grupos = new Map();
