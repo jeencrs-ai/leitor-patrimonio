@@ -128,9 +128,20 @@ function corrigirSetor(nome) {
   abrirResumo(nome,'inicio'); $('renomear').value = nome; $('novoNome').value = nome;
   $('configSetor').open = true; $('novoNome').focus();
 }
+let mostrarTodosSetores = false;
 function renderSetoresSalvos() {
   const lista = $('setoresSalvos'); lista.replaceChildren();
-  gruposResumo(registros).forEach(g => {
+  const recentes = new Map();
+  [...registros,...trocas].forEach(r => {
+    const chave = normalizar(r.setor), data = Date.parse(r.editadaEm || r.atualizadoEm || r.data || '') || 0;
+    recentes.set(chave,Math.max(recentes.get(chave) || 0,data));
+  });
+  const grupos = gruposResumo(registros).sort((a,b) => (recentes.get(normalizar(b.setor)) || 0) - (recentes.get(normalizar(a.setor)) || 0) || a.setor.localeCompare(b.setor,'pt-BR'));
+  const verMais = $('verMaisSetores');
+  verMais.hidden = grupos.length <= 5;
+  verMais.textContent = mostrarTodosSetores ? 'Mostrar apenas os 5 mais recentes' : `Ver mais (${Math.max(0,grupos.length-5)} setores)`;
+  verMais.setAttribute('aria-expanded',String(mostrarTodosSetores));
+  (mostrarTodosSetores ? grupos : grupos.slice(0,5)).forEach(g => {
     const card = document.createElement('article'); card.className = 'registro';
     const titulo = document.createElement('h3'); titulo.textContent = g.setor;
     const info = document.createElement('p'); info.textContent = `${g.novos} novos · ${g.velhos} velhos · ${g.doacoes} doações · ${trocas.filter(t => normalizar(t.setor) === normalizar(g.setor)).length} trocas de CPU`;
@@ -142,6 +153,7 @@ function renderSetoresSalvos() {
   });
   if (!lista.children.length) lista.textContent = 'Os setores com registros salvos aparecerão aqui.';
 }
+$('verMaisSetores').onclick = () => { mostrarTodosSetores = !mostrarTodosSetores; renderSetoresSalvos(); };
 function campo(id,container) {
   $(`ler_${id}`).onclick = () => abrirCamera(id);
   document.querySelectorAll(`input[name="marca_${id}"]`).forEach(c => { c.onchange = atualizarMarcas; });
@@ -241,6 +253,7 @@ async function salvar(evento) {
   if (!$('formMovimento').reportValidity()) return;
   const anterior = registros.find(r => r.id === editandoId);
   const r = {...anterior,id:editandoId || crypto.randomUUID(),setor,movimento:modo,data:anterior?.data || new Date().toISOString()};
+  if (anterior) r.atualizadoEm = new Date().toISOString();
   if (modo === 'ENTRADA') {
     r.marcas = lerMarcas();
     ['cpu','monitor1','monitor2'].forEach(id => r[id] = $(id).value.trim());
