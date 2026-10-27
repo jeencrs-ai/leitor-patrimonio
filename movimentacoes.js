@@ -1,34 +1,46 @@
 const $ = id => document.getElementById(id);
 const CHAVE = 'patrimonio_movimentacoes_v1';
 let banco, revisao = 0, gravando = false;
+let trocas = [];
+let setoresCadastrados = [];
 let editandoId = null;
 let retornoCadastro = 'operacao', retornoConfirmacao = 'operacao', ultimoSalvoId = null;
 let registros = [], setor = '', modo = '', filtroSetor = '', retornoResumo = 'inicio', camera = null, cameraPendente = false, destinoCamera = null, indisponivel = false;
 const msg = texto => $('status').textContent = texto;
 const normalizar = texto => texto.trim().toLocaleUpperCase('pt-BR');
+const chaveSetor = nome => nome.normalize('NFD').replace(/[\u0300-\u036f]/g,'').trim().replace(/\s+/g,' ').toLocaleUpperCase('pt-BR');
+function setorDuplicado(nome,atual = '') {
+  return setoresCadastrados.find(s => s !== atual && chaveSetor(s) === chaveSetor(nome));
+}
+function avisarSetorDuplicado(campo,nome) {
+  const aviso = `O setor "${nome}" já está cadastrado. Use o setor existente na lista.`;
+  msg(aviso); campo.setCustomValidity(aviso); campo.reportValidity();
+}
 const nomesCampos = {cpu:'CPU',monitor1:'Monitor 1',monitor2:'Monitor 2',patrimonio:'Patrimônio de saída'};
 function tela(id) {
-  ['inicio','operacao','cadastro','confirmacao','resumo','exclusao','consulta'].forEach(x => $(x).hidden = x !== id);
+  ['inicio','operacao','cadastro','confirmacao','resumo','exclusao','consulta','trocaCpu','cadastroSetores'].forEach(x => $(x).hidden = x !== id);
   msg(''); window.scrollTo(0,0);
 }
-async function gravar(copia) {
+async function gravar(copia, trocasCopia = trocas, fazerBackup = false, catalogo = setoresCadastrados) {
   if (indisponivel || !banco) { msg('IndexedDB indisponível. Os dados anteriores foram preservados.'); return false; }
   if (gravando) return false;
   gravando = true;
   try {
     await new Promise((resolve,reject) => {
-      const tx = banco.transaction('estado','readwrite'), store = tx.objectStore('estado');
+      const tx = banco.transaction(['estado','trocas','backups'],'readwrite'), store = tx.objectStore('estado');
       let conflito = false;
       const pedido = store.get('atual');
       pedido.onsuccess = () => {
         if ((pedido.result?.revisao || 0) !== revisao) { conflito = true; tx.abort(); return; }
-        store.put({registros:copia,revisao:revisao+1},'atual');
+        if (fazerBackup) tx.objectStore('backups').put({data:new Date().toISOString(),registros:pedido.result?.registros || copia,trocas:structuredClone(trocas),setores:pedido.result?.setores || catalogo},`antes_troca_${revisao}`);
+        store.put({registros:copia,revisao:revisao+1,setores:catalogo},'atual');
+        const destino = tx.objectStore('trocas'); destino.clear(); trocasCopia.forEach(t => destino.put(t));
       };
       tx.oncomplete = resolve;
       tx.onabort = () => reject(Error(conflito ? 'Os dados foram alterados em outra aba. Recarregue a página antes de salvar.' : 'A gravação foi cancelada.'));
       tx.onerror = () => {};
     });
-    revisao++; registros = copia; atualizarSetores(); return true;
+    revisao++; registros = copia; trocas = trocasCopia; setoresCadastrados = catalogo; atualizarSetores(); return true;
   } catch(e) { msg(`Não foi possível salvar no IndexedDB. ${e.message}`); return false; }
   finally { gravando = false; }
 }
@@ -37,6 +49,10 @@ function validarDuplicidade(r, lista) {
   if (!entrada && !['VELHO','BAIXA'].includes(r.tipo)) return '';
   const codigos = (entrada ? [r.cpu,r.monitor1,r.monitor2] : [r.patrimonio]).filter(v => v?.trim()).map(normalizar);
   if (new Set(codigos).size !== codigos.length) return `Patrimônio ${codigos.find((c,i) => codigos.indexOf(c) !== i)} repetido nesta entrada. CPU e monitores devem ter patrimônios diferentes.`;
+  if (entrada) {
+    const usado = trocas.find(t => t.nova.cadastroNovo && codigos.includes(normalizar(t.nova.patrimonio)));
+    if (usado) return `Patrim\u00f4nio ${usado.nova.patrimonio} j\u00e1 cadastrado na troca de CPU do setor ${usado.setor}.`;
+  }
   for (const outro of lista) {
     if (outro.id === r.id) continue;
     if (entrada ? outro.movimento !== 'ENTRADA' : outro.movimento !== 'SAÍDA' || !['VELHO','BAIXA'].includes(outro.tipo)) continue;
@@ -63,14 +79,47 @@ function verificarCamposDigitados(campo) {
   alertarDuplicidade(erro,campo); return false;
 }
 function atualizarSetores() {
-  $('setores').replaceChildren(); $('renomear').replaceChildren();
-  [...new Set(registros.map(r => r.setor).concat(setor ? [setor] : []))].sort((a,b) => a.localeCompare(b,'pt-BR')).forEach(nome => {
+  const selecionado = $('setor').value;
+  $('setores').replaceChildren(); $('renomear').replaceChildren(); $('setor').replaceChildren();
+  const vazio = document.createElement('option'); vazio.value = ''; vazio.textContent = 'Selecione um setor cadastrado'; $('setor').append(vazio);
+  setoresCadastrados.slice().sort((a,b) => a.localeCompare(b,'pt-BR')).forEach(nome => {
     const opcao = document.createElement('option'); opcao.value = nome; $('setores').append(opcao);
     const escolha = document.createElement('option'); escolha.value = nome; escolha.textContent = nome; $('renomear').append(escolha);
+    const item = document.createElement('option'); item.value = nome; item.textContent = nome; $('setor').append(item);
   });
+  $('setor').value = setoresCadastrados.includes(selecionado) ? selecionado : '';
   if (filtroSetor) $('renomear').value = filtroSetor;
   renderSetoresSalvos();
+  renderCatalogoSetores();
+  ['destino','destinoSetorTroca'].forEach(id => {
+    const campo = $(id), valor = campo.value; campo.replaceChildren();
+    const inicial = document.createElement('option'); inicial.value = ''; inicial.textContent = 'Selecione um setor cadastrado'; campo.append(inicial);
+    setoresCadastrados.slice().sort((a,b) => a.localeCompare(b,'pt-BR')).forEach(nome => { const opcao = document.createElement('option'); opcao.value = nome; opcao.textContent = nome; campo.append(opcao); });
+    campo.value = valor;
+  });
 }
+function renderCatalogoSetores() {
+  $('listaCadastroSetores').replaceChildren();
+  setoresCadastrados.slice().sort((a,b) => a.localeCompare(b,'pt-BR')).forEach(nome => {
+    const card = document.createElement('article'); card.className = 'registro';
+    const titulo = document.createElement('h3'); titulo.textContent = nome;
+    const usar = document.createElement('button'); usar.className = 'secundario'; usar.textContent = 'Usar este setor'; usar.onclick = () => abrirSetorSalvo(nome);
+    const editar = document.createElement('button'); editar.className = 'voltar'; editar.textContent = 'Corrigir nome'; editar.onclick = () => corrigirSetor(nome);
+    card.append(titulo,usar,editar); $('listaCadastroSetores').append(card);
+  });
+  if (!setoresCadastrados.length) $('listaCadastroSetores').textContent = 'Nenhum setor cadastrado. Cadastre o primeiro acima.';
+}
+$('abrirCadastroSetores').onclick = () => { renderCatalogoSetores(); tela('cadastroSetores'); $('nomeCadastroSetor').focus(); };
+$('voltarCadastroSetores').onclick = () => tela('inicio');
+$('formCadastroSetor').onsubmit = async e => {
+  e.preventDefault(); const nome = $('nomeCadastroSetor').value.trim().replace(/\s+/g,' ');
+  if (!nome) return msg('Informe o nome do setor.');
+  const existente = setorDuplicado(nome);
+  if (existente) return avisarSetorDuplicado($('nomeCadastroSetor'),existente);
+  if (!await gravar(registros,trocas,false,[...setoresCadastrados,nome])) return;
+  $('nomeCadastroSetor').value = ''; $('setor').value = nome; msg(`Setor ${nome} cadastrado. Agora ele está disponível na lista.`);
+};
+['nomeCadastroSetor','novoNome'].forEach(id => { $(id).addEventListener('input',() => $(id).setCustomValidity('')); });
 function abrirSetorSalvo(nome) {
   setor = nome; $('setor').value = nome; $('nomeSetor').textContent = nome;
   editandoId = null; atualizarSetores(); tela('operacao');
@@ -84,32 +133,33 @@ function renderSetoresSalvos() {
   gruposResumo(registros).forEach(g => {
     const card = document.createElement('article'); card.className = 'registro';
     const titulo = document.createElement('h3'); titulo.textContent = g.setor;
-    const info = document.createElement('p'); info.textContent = `${g.novos} novos · ${g.velhos} velhos · ${g.doacoes} doações`;
+    const info = document.createElement('p'); info.textContent = `${g.novos} novos · ${g.velhos} velhos · ${g.doacoes} doações · ${trocas.filter(t => normalizar(t.setor) === normalizar(g.setor)).length} trocas de CPU`;
     const abrir = document.createElement('button'); abrir.className = 'primario'; abrir.textContent = 'Abrir setor / adicionar item'; abrir.onclick = () => abrirSetorSalvo(g.setor);
     const editar = document.createElement('button'); editar.className = 'secundario'; editar.textContent = 'Ver e editar dados'; editar.onclick = () => abrirResumo(g.setor,'inicio');
     const nome = document.createElement('button'); nome.className = 'voltar'; nome.textContent = 'Corrigir nome do setor'; nome.onclick = () => corrigirSetor(g.setor);
-    card.append(titulo,info,abrir,editar,nome); lista.append(card);
+    const zap = document.createElement('button'); zap.className = 'secundario'; zap.textContent = 'Resumo do setor para WhatsApp'; zap.onclick = () => abrirRelatorioMonitores(registros.filter(r => normalizar(r.setor) === normalizar(g.setor)));
+    card.append(titulo,info,abrir,editar,zap,nome); lista.append(card);
   });
   if (!lista.children.length) lista.textContent = 'Os setores com registros salvos aparecerão aqui.';
 }
 function campo(id,container) {
-  if (container === 'camposEntrada') {
-    $(`ler_${id}`).onclick = () => abrirCamera(id);
-    document.querySelectorAll(`input[name="marca_${id}"]`).forEach(c => { c.onchange = atualizarMarcas; });
-    return;
-  }
-  const bloco = document.createElement('div'); bloco.className = 'campo-patrimonio';
-  const topo = document.createElement('div'); topo.className = 'campo-topo';
-  const label = document.createElement('label'); label.htmlFor = id; label.textContent = nomesCampos[id] + (id === 'patrimonio' ? ' *' : ' · opcional');
-  const ler = document.createElement('button'); ler.type = 'button'; ler.className = 'ler'; ler.textContent = '▣ Ler câmera'; ler.onclick = () => abrirCamera(id);
-  const input = document.createElement('input'); input.id = id; input.autocomplete = 'off'; input.placeholder = 'Digite o patrimônio';
-  const ajuda = document.createElement('small'); ajuda.className = 'ajuda-campo'; ajuda.textContent = 'Digite a plaqueta neste campo ou use a câmera. Você pode corrigir o código após a leitura.';
-  topo.append(label,ler); bloco.append(topo,input,ajuda); $(container).append(bloco);
+  $(`ler_${id}`).onclick = () => abrirCamera(id);
+  document.querySelectorAll(`input[name="marca_${id}"]`).forEach(c => { c.onchange = atualizarMarcas; });
 }
 function atualizarMarcas() {
-  ['cpu','monitor1','monitor2'].forEach(id => {
-    const entrada = modo === 'ENTRADA';
-    document.querySelectorAll(`input[name="marca_${id}"]`).forEach(c => { c.disabled = !entrada; });
+  ['cpu','monitor1','monitor2','patrimonio'].forEach(id => {
+    const entrada = id === 'patrimonio' ? modo === 'SAÍDA' : modo === 'ENTRADA';
+    const tipo = document.querySelector('input[name=tipo]:checked')?.value;
+    const ordem = tipo === 'VELHO' ? ['HP','BenQ','Lenovo'] : ['AOC','Lenovo','Positivo','Outros'];
+    document.querySelectorAll(`input[name="marca_${id}"]`).forEach(c => {
+      const permitido = id !== 'patrimonio' || (!!tipo && ordem.includes(c.value));
+      c.disabled = !entrada || !permitido; c.required = id === 'patrimonio' && entrada && permitido;
+      if (id === 'patrimonio') {
+        c.closest('label').hidden = !permitido;
+        c.closest('label').style.order = ordem.indexOf(c.value);
+        if (!permitido) c.checked = false;
+      }
+    });
     const outros = entrada && document.querySelector(`input[name="marca_${id}"]:checked`)?.value === 'Outros';
     $(`outraMarcaBox_${id}`).hidden = !outros;
     $(`outraMarca_${id}`).disabled = !outros; $(`outraMarca_${id}`).required = outros;
@@ -127,6 +177,7 @@ function focarProximo(elemento) {
   elemento.closest('.campo-patrimonio')?.scrollIntoView({behavior:'smooth',block:'nearest'});
 }
 function proximoEquipamento(id) {
+  if (id === 'patrimonio') { focarProximo($('salvar')); return; }
   const campos = ['cpu','monitor1','monitor2'];
   focarProximo($(campos[campos.indexOf(id)+1] || 'salvar'));
 }
@@ -149,7 +200,10 @@ function avancarCampo(campo) {
   } else if (['origem','destino'].includes(campo.id)) {
     if (campo.reportValidity()) focarProximo($('patrimonio'));
   } else if (campo.id === 'patrimonio') {
-    if (campo.reportValidity()) focarProximo($('salvar'));
+    if (campo.reportValidity()) {
+      const tipo = document.querySelector('input[name=tipo]:checked')?.value;
+      focarProximo(document.querySelector('input[name=marca_patrimonio]:checked') || document.querySelector(`input[name=marca_patrimonio][value="${tipo === 'VELHO' ? 'HP' : 'AOC'}"]`));
+    }
   }
 }
 function configurarModo(novoModo, voltar = 'operacao') {
@@ -191,6 +245,9 @@ async function salvar(evento) {
     r.marcas = lerMarcas();
     ['cpu','monitor1','monitor2'].forEach(id => r[id] = $(id).value.trim());
   } else {
+    const marcaSaida = document.querySelector('input[name=marca_patrimonio]:checked')?.value;
+    r.marca = marcaSaida === 'Outros' ? $('outraMarca_patrimonio').value.trim() : marcaSaida || '';
+    if (!r.marca) return msg('Selecione a marca do equipamento de saída.');
     r.tipo = document.querySelector('input[name=tipo]:checked')?.value;
     r.destino = r.tipo === 'SEMINOVO' ? $('destino').value.trim() : '';
     r.patrimonio = $('patrimonio').value.trim(); r.origem = r.tipo === 'DOAÇÃO' ? $('origem').value.trim() : anterior?.origem || '';
@@ -198,6 +255,7 @@ async function salvar(evento) {
   }
   const erroDuplicidade = validarDuplicidade(r,registros);
   if (erroDuplicidade) return alertarDuplicidade(erroDuplicidade);
+  if (anterior && TrocasCPU.vinculado(anterior.id,trocas) && (normalizar(r.cpu || '') !== normalizar(anterior.cpu || '') || (r.marcas?.cpu || '') !== (anterior.marcas?.cpu || ''))) return msg('CPU vinculada a uma troca. Preserve a plaqueta e marca; registre outra troca para mudar a CPU. Monitores continuam edit\u00e1veis.');
   if (!await gravar(editandoId ? registros.map(x => x.id === editandoId ? r : x) : [...registros,r])) return;
   ultimoSalvoId = r.id;
   if (retornoCadastro !== 'confirmacao') retornoConfirmacao = retornoCadastro === 'resumo' ? 'resumo' : 'operacao';
@@ -212,7 +270,7 @@ function dadosRegistro(r) {
   const campos = [['Setor',r.setor],['Movimentação',r.movimento]];
   if (r.movimento === 'ENTRADA') ['cpu','monitor1','monitor2'].forEach(id => { campos.push([nomesCampos[id],r[id] || 'Não informado']); if (r.marcas?.[id]) campos.push([`Marca de ${nomesCampos[id]}`,r.marcas[id]]); });
   else {
-    campos.push(['Condição / motivo',r.tipo],['Patrimônio',r.patrimonio]);
+    campos.push(['Condição / motivo',r.tipo],['Patrimônio',r.patrimonio],['Marca',r.marca || 'Não informada']);
     if (r.destino) campos.push(['Setor de destino',r.destino]);
     if (r.origem) campos.push(['Setor de origem',r.origem]);
   }
@@ -226,10 +284,12 @@ function contarResumo(lista) {
 }
 function gruposResumo(lista) {
   const grupos = new Map();
+  if (lista === registros) trocas.flatMap(t => [t.setor,...(t.destinoTipo === 'OUTRO_SETOR' || t.destinoTipo === 'ESTOQUE' ? [t.destinoSetor] : [])]).filter(Boolean).forEach(nome => grupos.set(normalizar(nome),{setor:nome,registros:[]}));
   lista.forEach(r => { const chave = normalizar(r.setor); if (!grupos.has(chave)) grupos.set(chave,{setor:r.setor,registros:[]}); grupos.get(chave).registros.push(r); });
   return [...grupos.values()].map(g => ({setor:g.setor,...contarResumo(g.registros)})).sort((a,b) => a.setor.localeCompare(b.setor,'pt-BR'));
 }
 function renderResumo() {
+  if (typeof renderHistoricoTrocas === 'function') renderHistoricoTrocas();
   const lista = registros.filter(r => !filtroSetor || normalizar(r.setor) === normalizar(filtroSetor));
   $('escopoResumo').textContent = filtroSetor ? `Setor: ${filtroSetor}` : 'Todos os setores salvos neste aparelho';
   $('totais').replaceChildren();
@@ -265,13 +325,14 @@ function editarRegistro(id, voltar = 'resumo') {
   const r = registros.find(x => x.id === id); if (!r) return;
   setor = r.setor; $('nomeSetor').textContent = setor; configurarModo(r.movimento, voltar); editandoId = id;
   ['cpu','monitor1','monitor2','patrimonio','origem','destino'].forEach(c => { $(c).value = r[c] || ''; });
-  ['cpu','monitor1','monitor2'].forEach(id => {
-    const marca = r.marcas?.[id] || '', padrao = ['Positivo','AOC','Lenovo'].includes(marca);
+  const tipo = r.tipo === 'BAIXA' ? 'VELHO' : r.tipo === 'DOAÇÃO' ? 'SEMINOVO' : r.tipo;
+  document.querySelectorAll('input[name=tipo]').forEach(c => { c.checked = c.value === tipo; });
+  atualizarOrigem();
+  ['cpu','monitor1','monitor2','patrimonio'].forEach(id => {
+    const marca = (id === 'patrimonio' ? r.marca : r.marcas?.[id]) || '', padrao = (id === 'patrimonio' ? ['HP','BenQ','Positivo','AOC','Lenovo'] : ['Positivo','AOC','Lenovo']).includes(marca);
     document.querySelectorAll(`input[name="marca_${id}"]`).forEach(c => { c.checked = !!marca && c.value === (padrao ? marca : 'Outros'); });
     $(`outraMarca_${id}`).value = padrao ? '' : marca;
   });
-  const tipo = r.tipo === 'BAIXA' ? 'VELHO' : r.tipo === 'DOAÇÃO' ? 'SEMINOVO' : r.tipo;
-  document.querySelectorAll('input[name=tipo]').forEach(c => { c.checked = c.value === tipo; });
   atualizarOrigem(); $('salvar').textContent = 'Salvar alterações';
   msg('Corrija os campos e salve as alterações. A exclusão fica na seção Gerenciar exclusões.');
 }
@@ -295,6 +356,7 @@ $('executarExclusao').onclick = async () => {
   if (normalizar($('confirmarExclusaoTexto').value) !== 'EXCLUIR') return;
   const id = $('executarExclusao').dataset.id;
   if (!registros.some(r => r.id === id)) return;
+  if (TrocasCPU.vinculado(id,trocas)) { $('confirmarExclusao').close(); msg('Registro vinculado a uma troca de CPU. Preserve-o para manter o hist\u00f3rico.'); return; }
   if (!await gravar(registros.filter(r => r.id !== id))) { $('confirmarExclusao').close(); return; }
   $('confirmarExclusao').close(); renderExclusao(); msg('Registro excluído.');
 };
@@ -309,64 +371,51 @@ function consultarPatrimonio(codigo,lista) {
       resultados.push({patrimonio:r[campo].trim(),marca:r.marcas?.[campo] || (campo === 'patrimonio' ? r.marca : '') || 'Não informada',setor:r.setor,equipamento:nomesCampos[campo],movimento:r.movimento,tipo:r.tipo,destino:r.destino,data:r.data});
     });
   });
+  trocas.forEach(t => {
+    const antiga = normalizar(t.anterior.patrimonio) === chave, nova = normalizar(t.nova.patrimonio) === chave;
+    if (antiga || nova) {
+      const cpu = nova ? t.nova : t.anterior;
+      resultados.push({patrimonio:cpu.patrimonio,marca:cpu.marca || 'N\u00e3o informada',setor:nova ? t.setor : t.destinoSetor || t.destinoTipo,equipamento:'CPU',movimento:'TROCA DE CPU',tipo:nova ? 'ENTRADA NA TROCA' : `SA\u00cdDA PARA ${t.destinoTipo}`,destino:antiga ? t.destinoSetor : '',data:t.data});
+    }
+  });
   return resultados.sort((a,b) => (b.data || '').localeCompare(a.data || ''));
 }
-let retornoConsulta = 'inicio';
-function abrirConsulta(voltar) {
-  retornoConsulta = voltar; $('patrimonioConsulta').value = ''; $('resultadoConsulta').replaceChildren();
-  $('statusConsulta').textContent = 'Digite a plaqueta completa para consultar todos os setores.';
-  tela('consulta'); $('patrimonioConsulta').focus();
-}
-$('consultarInicio').onclick = () => abrirConsulta('inicio');
-$('consultarSetor').onclick = () => abrirConsulta('operacao');
-$('voltarConsulta').onclick = () => tela(retornoConsulta);
-$('patrimonioConsulta').oninput = () => { $('resultadoConsulta').replaceChildren(); $('statusConsulta').textContent = ''; };
-$('formConsulta').onsubmit = e => {
-  e.preventDefault(); $('resultadoConsulta').replaceChildren();
-  const codigo = $('patrimonioConsulta').value.trim();
-  if (!codigo) { $('statusConsulta').textContent = 'Informe o patrimônio.'; return; }
-  if (!banco || indisponivel) { $('statusConsulta').textContent = 'Banco indisponível ou carregando. Aguarde a abertura do IndexedDB para consultar.'; return; }
-  const resultados = consultarPatrimonio(codigo,registros);
-  $('statusConsulta').textContent = resultados.length ? `${resultados.length} ocorrência(s) encontrada(s). Setores correspondem aos registros de cada movimentação.` : 'Patrimônio não encontrado nos registros deste aparelho.';
-  resultados.forEach(r => {
-    const card = document.createElement('article'); card.className = 'registro';
-    const titulo = document.createElement('h3'); titulo.textContent = r.movimento === 'ENTRADA' ? r.equipamento : 'Equipamento de saída';
-    const dl = document.createElement('dl'); dl.className = 'dados-registro';
-    const dados = [['Patrimônio',r.patrimonio],['Marca',r.marca],['Setor',r.setor],['Movimentação',r.tipo ? `${r.movimento} · ${r.tipo}` : r.movimento]];
-    if (r.destino) dados.push(['Setor de destino',r.destino]);
-    dados.forEach(([nome,valor]) => { const linha = document.createElement('div'),dt = document.createElement('dt'),dd = document.createElement('dd'); dt.textContent = nome; dd.textContent = valor; linha.append(dt,dd); dl.append(linha); });
-    card.append(titulo,dl); $('resultadoConsulta').append(card);
-  });
-};
 function relatorioMonitores(lista) {
   const grupos = new Map();
-  lista.filter(r => r.movimento === 'ENTRADA').forEach(r => {
-    const monitores = ['monitor1','monitor2'].filter(id => r[id]?.trim()).map(id => ({patrimonio:r[id].trim(),marca:r.marcas?.[id] || ''}));
-    if (!monitores.length) return;
+  lista.forEach(r => {
     const chave = normalizar(r.setor);
-    if (!grupos.has(chave)) grupos.set(chave,{setor:r.setor,itens:[]});
-    grupos.get(chave).itens.push(...monitores);
+    if (!grupos.has(chave)) grupos.set(chave,{setor:r.setor,novos:[],velhos:[],doacoes:[]});
+    const g = grupos.get(chave);
+    if (r.movimento === 'ENTRADA') {
+      ['monitor1','monitor2'].filter(id => r[id]?.trim()).forEach(id => g.novos.push({patrimonio:r[id].trim(),marca:r.marcas?.[id]}));
+    } else if (r.patrimonio?.trim() && r.tipoEquipamento !== 'CPU') {
+      const grupo = ['VELHO','BAIXA'].includes(r.tipo) ? g.velhos : g.doacoes;
+      grupo.push({patrimonio:r.patrimonio.trim(),marca:r.marca,destino:r.destino});
+    }
   });
-  const setores = [...grupos.values()].sort((a,b) => a.setor.localeCompare(b.setor,'pt-BR'));
+  const setores = [...grupos.values()].filter(g => g.novos.length+g.velhos.length+g.doacoes.length).sort((a,b) => a.setor.localeCompare(b.setor,'pt-BR'));
   if (!setores.length) return '';
-  const total = setores.reduce((n,g) => n+g.itens.length,0);
-  const linhas = ['*RELATÓRIO DE MONITORES NOVOS*',`Total: ${total} monitor(es) | ${setores.length} setor(es)`,''];
+  const totais = setores.reduce((t,g) => ({novos:t.novos+g.novos.length,velhos:t.velhos+g.velhos.length,doacoes:t.doacoes+g.doacoes.length}),{novos:0,velhos:0,doacoes:0});
+  const linhas = ['*RESUMO DE MONITORES*',`Novos: ${totais.novos} | Sa\u00eddas velhos: ${totais.velhos} | Doa\u00e7\u00f5es/seminovos: ${totais.doacoes}`,''];
   setores.forEach(g => {
-    linhas.push(`*${g.setor} — ${g.itens.length} monitor(es)*`);
-    g.itens.forEach(m => linhas.push(`Monitor: ${m.patrimonio}${m.marca ? ' · ' + m.marca : ''}`));
+    linhas.push(`*Setor: ${g.setor}*`);
+    [['Novos',g.novos],['Sa\u00eddas - velhos',g.velhos],['Sa\u00eddas - doa\u00e7\u00f5es/seminovos',g.doacoes]].forEach(([nome,itens]) => {
+      linhas.push(`${nome}: ${itens.length}`);
+      itens.forEach(m => linhas.push(`Monitor: ${m.patrimonio} | Marca: ${m.marca || 'N\u00e3o informada'}${m.destino ? ' | Destino: '+m.destino : ''}`));
+    });
     linhas.push('');
   });
   return linhas.join('\n').trim();
 }
-$('abrirRelatorioMonitores').onclick = () => {
-  const lista = registros.filter(r => !filtroSetor || normalizar(r.setor) === normalizar(filtroSetor));
+function abrirRelatorioMonitores(lista) {
   const texto = relatorioMonitores(lista);
-  if (!texto) return msg('Não há patrimônios de monitores informados neste resumo.');
+  if (!texto) return msg('N\u00e3o h\u00e1 patrim\u00f4nios de monitores informados neste resumo.');
   $('textoRelatorioMonitores').value = texto;
   $('whatsappMonitores').href = `https://wa.me/?text=${encodeURIComponent(texto)}`;
   $('statusRelatorioMonitores').textContent = '';
   $('relatorioMonitores').showModal();
-};
+}
+$('abrirRelatorioMonitores').onclick = () => abrirRelatorioMonitores(registros.filter(r => !filtroSetor || normalizar(r.setor) === normalizar(filtroSetor)));
 $('fecharRelatorioMonitores').onclick = () => $('relatorioMonitores').close();
 $('copiarRelatorioMonitores').onclick = async () => {
   try { await navigator.clipboard.writeText($('textoRelatorioMonitores').value); $('statusRelatorioMonitores').textContent = 'Resumo copiado. Cole na conversa do WhatsApp.'; }
@@ -376,13 +425,16 @@ function exportar() {
   if (!registros.length) return msg('Nenhum registro salvo para exportar.');
   if (!window.XLSX?.utils) return msg('O Excel não carregou. Conecte-se à internet e recarregue para exportar.');
   try {
-    const cabecalho = ['Setor','Movimentação','Condição / motivo da saída','CPU','Monitor 1','Monitor 2','Patrimônio de saída','Setor de origem (anterior)','Setor de destino','Data e hora','Marca CPU','Marca Monitor 1','Marca Monitor 2'];
-    const linhas = registros.map(r => [r.setor,r.movimento,r.tipo || '',r.cpu || '',r.monitor1 || '',r.monitor2 || '',r.patrimonio || '',r.origem || '',r.destino || '',new Date(r.data).toLocaleString('pt-BR'),r.marcas?.cpu || '',r.marcas?.monitor1 || '',r.marcas?.monitor2 || '']);
+    const cabecalho = ['Setor','Movimentação','Condição / motivo da saída','CPU','Monitor 1','Monitor 2','Patrimônio de saída','Setor de origem (anterior)','Setor de destino','Data e hora','Marca CPU','Marca Monitor 1','Marca Monitor 2','Marca saída'];
+    const linhas = registros.map(r => [r.setor,r.movimento,r.tipo || '',r.cpu || '',r.monitor1 || '',r.monitor2 || '',r.patrimonio || '',r.origem || '',r.destino || '',new Date(r.data).toLocaleString('pt-BR'),r.marcas?.cpu || '',r.marcas?.monitor1 || '',r.marcas?.monitor2 || '',r.marca || '']);
     const resumo = [['Setor','Computadores novos','Velhos','Doa\u00e7\u00f5es','CPUs novas informadas','Monitores novos informados']];
     gruposResumo(registros).forEach(g => resumo.push([g.setor,g.novos,g.velhos,g.doacoes,g.cpus,g.monitores]));
     const total = contarResumo(registros); resumo.push(['TOTAL GERAL',total.novos,total.velhos,total.doacoes,total.cpus,total.monitores]);
+    const tabelaTrocas = [['Setor','CPU que sai','Marca antiga','CPU que entra','Marca que entra','Destino','Setor de destino','Monitores mantidos','Data e hora'],...trocas.map(t => [t.setor,t.anterior.patrimonio,t.anterior.marca,t.nova.patrimonio,t.nova.marca,t.destinoTipo,t.destinoSetor,t.monitores.join(', '),new Date(t.data).toLocaleString('pt-BR')])];
+    resumo[0].push('Trocas de CPU');
+    resumo.slice(1,-1).forEach(l => l.push(trocas.filter(t => normalizar(t.setor) === normalizar(l[0])).length)); resumo.at(-1).push(trocas.length);
     const livro = XLSX.utils.book_new();
-    [['Resumo',resumo],['Movimentações',[cabecalho,...linhas]],['Entradas',[cabecalho,...linhas.filter(l => l[1] === 'ENTRADA')]],['Saídas',[cabecalho,...linhas.filter(l => l[1] === 'SAÍDA')]]].forEach(([nome,tabela]) => {
+    [['Trocas de CPU',tabelaTrocas],['Resumo',resumo],['Movimentações',[cabecalho,...linhas]],['Entradas',[cabecalho,...linhas.filter(l => l[1] === 'ENTRADA')]],['Saídas',[cabecalho,...linhas.filter(l => l[1] === 'SAÍDA')]]].forEach(([nome,tabela]) => {
       const folha = XLSX.utils.aoa_to_sheet(tabela); folha['!cols'] = tabela[0].map(() => ({wch:25})); folha['!autofilter'] = {ref:XLSX.utils.encode_range({s:{r:0,c:0},e:{r:tabela.length-1,c:tabela[0].length-1}})}; XLSX.utils.book_append_sheet(livro,folha,nome);
     });
     XLSX.writeFile(livro,`patrimonio_movimentacoes_${new Date().toLocaleDateString('sv-SE')}.xlsx`); msg('Relatório completo exportado com todos os novos registros deste aparelho.');
@@ -426,7 +478,7 @@ $('formMovimento').addEventListener('keydown',e => {
 document.querySelectorAll('#formMovimento input[type=radio]').forEach(campo => {
   campo.addEventListener('click',() => avancarCampo(campo));
 });
-['cpu','monitor1','monitor2','outraMarca_cpu','outraMarca_monitor1','outraMarca_monitor2','origem','destino','patrimonio'].forEach(id => {
+['cpu','monitor1','monitor2','outraMarca_cpu','outraMarca_monitor1','outraMarca_monitor2','outraMarca_patrimonio','origem','destino','patrimonio'].forEach(id => {
   $(id).enterKeyHint = 'next';
 });
 document.querySelectorAll('input[name=tipo]').forEach(r => r.onchange = atualizarOrigem);
@@ -439,9 +491,12 @@ $('novoRegistro').onclick = () => configurarModo(modo); $('outraMovimentacao').o
 $('resumoInicio').onclick = () => abrirResumo('','inicio'); $('resumoSetor').onclick = () => abrirResumo(setor,'operacao'); $('voltarResumo').onclick = () => tela(retornoResumo);
 $('busca').oninput = renderResumo;
 $('salvarNome').onclick = async () => {
-  const anterior = $('renomear').value, nome = $('novoNome').value.trim();
+  const anterior = $('renomear').value, nome = $('novoNome').value.trim().replace(/\s+/g,' ');
   if (!anterior || !nome) return msg('Selecione o setor e informe o novo nome.');
-  if (!await gravar(registros.map(r => ({...r,destino:r.destino && normalizar(r.destino) === normalizar(anterior) ? nome : r.destino,setor:normalizar(r.setor) === normalizar(anterior) ? nome : r.setor,origem:r.origem && normalizar(r.origem) === normalizar(anterior) ? nome : r.origem})))) return;
+  const existente = setorDuplicado(nome,anterior);
+  if (existente) return avisarSetorDuplicado($('novoNome'),existente);
+  $('novoNome').setCustomValidity('');
+  if (!await gravar(registros.map(r => ({...r,destino:r.destino && normalizar(r.destino) === normalizar(anterior) ? nome : r.destino,setor:normalizar(r.setor) === normalizar(anterior) ? nome : r.setor,origem:r.origem && normalizar(r.origem) === normalizar(anterior) ? nome : r.origem})),trocas.map(t => ({...t,setor:normalizar(t.setor) === normalizar(anterior) ? nome : t.setor,destinoSetor:t.destinoSetor && normalizar(t.destinoSetor) === normalizar(anterior) ? nome : t.destinoSetor})),false,[...new Map(setoresCadastrados.map(s => normalizar(s) === normalizar(anterior) ? nome : s).map(s => [normalizar(s),s])).values()])) return;
   if (normalizar(setor) === normalizar(anterior)) { setor = nome; $('nomeSetor').textContent = nome; $('setor').value = nome; }
   if (filtroSetor && normalizar(filtroSetor) === normalizar(anterior)) filtroSetor = nome;
   $('novoNome').value = ''; atualizarSetores(); renderResumo(); msg('Nome do setor atualizado.');
@@ -455,8 +510,15 @@ async function iniciarBanco() {
   $('salvar').disabled = true;
   try {
     banco = await new Promise((resolve,reject) => {
-      const pedido = indexedDB.open('patrimonio_monitor',1);
-      pedido.onupgradeneeded = () => pedido.result.createObjectStore('estado');
+      const pedido = indexedDB.open('patrimonio_monitor',2);
+      pedido.onupgradeneeded = () => {
+        const db = pedido.result;
+        if (!db.objectStoreNames.contains('estado')) db.createObjectStore('estado');
+        if (!db.objectStoreNames.contains('trocas')) db.createObjectStore('trocas',{keyPath:'id'});
+        if (!db.objectStoreNames.contains('backups')) db.createObjectStore('backups');
+        const leitura = pedido.transaction.objectStore('estado').get('atual');
+        leitura.onsuccess = () => { if (leitura.result) pedido.transaction.objectStore('backups').put({data:new Date().toISOString(),...leitura.result,trocas:[]},'antes_versao_2'); };
+      };
       pedido.onsuccess = () => resolve(pedido.result);
       pedido.onerror = () => reject(pedido.error);
       pedido.onblocked = () => msg('Feche outras abas do aplicativo para abrir o banco.');
@@ -466,10 +528,16 @@ async function iniciarBanco() {
       const pedido = banco.transaction('estado','readonly').objectStore('estado').get('atual');
       pedido.onsuccess = () => resolve(pedido.result); pedido.onerror = () => reject(pedido.error);
     });
+    trocas = await new Promise((resolve,reject) => {
+      const pedido = banco.transaction('trocas','readonly').objectStore('trocas').getAll();
+      pedido.onsuccess = () => resolve(pedido.result.sort((a,b) => a.sequencia-b.sequencia)); pedido.onerror = () => reject(pedido.error);
+    });
     const salvos = estado ? estado.registros : JSON.parse(localStorage.getItem(CHAVE) || '[]');
     if (!Array.isArray(salvos) || salvos.some(r => !r || typeof r.id !== 'string' || typeof r.setor !== 'string' || !['ENTRADA','SAÍDA'].includes(r.movimento))) throw Error('Registros inválidos.');
     revisao = estado?.revisao || 0;
-    if (!estado && !await gravar(salvos)) throw Error('Migração não concluída.');
+    if (estado?.setores && (!Array.isArray(estado.setores) || estado.setores.some(s => typeof s !== 'string' || !s.trim()))) throw Error('Cat\u00e1logo de setores inv\u00e1lido.');
+    setoresCadastrados = [...new Map([...(estado?.setores || []),...salvos.flatMap(r => [r.setor,r.destino,r.origem].filter(Boolean)),...trocas.flatMap(t => [t.setor,...(['ESTOQUE','OUTRO_SETOR'].includes(t.destinoTipo) ? [t.destinoSetor] : [])])].filter(Boolean).map(s => [normalizar(s),s.trim()])).values()];
+    if ((!estado || !Array.isArray(estado.setores)) && !await gravar(salvos,trocas,true)) throw Error('Migração não concluída.');
     registros = salvos; atualizarSetores(); $('salvar').disabled = false;
     msg(estado ? '' : 'IndexedDB pronto. Registros anteriores migrados; a cópia antiga foi preservada.');
   } catch(e) { indisponivel = true; msg(`Não foi possível abrir o IndexedDB. Os dados anteriores foram preservados. ${e.message}`); }

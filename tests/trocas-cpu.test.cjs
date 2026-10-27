@@ -1,0 +1,53 @@
+const assert = require('node:assert/strict');
+const fs = require('node:fs');
+const vm = require('node:vm');
+const path = require('node:path');
+const contexto = vm.createContext({});
+vm.runInContext(fs.readFileSync(path.join(__dirname,'../cpu-trocas.js'),'utf8')+'\nglobalThis.api=TrocasCPU;',contexto);
+const api = contexto.api;
+const registros = [
+  {id:'posto-ti',setor:'TI',movimento:'ENTRADA',cpu:'001',marcas:{cpu:'Lenovo'},monitor1:'M001',monitor2:'M002'},
+  {id:'estoque',setor:'Estoque',movimento:'ENTRADA',cpu:'002',marcas:{cpu:'Positivo'}},
+  {id:'rh',setor:'RH',movimento:'ENTRADA',cpu:'003',marcas:{cpu:'Lenovo'}}
+];
+const original = JSON.stringify(registros);
+const dados = {setor:'TI',cpuAtual:'001',cpuNova:'002',origemNova:'CADASTRADA',destinoTipo:'ESTOQUE'};
+const troca = {...api.preparar(dados,registros,[]),id:'t1',sequencia:1};
+assert.equal(JSON.stringify(registros),original,'Original records must not be changed');
+assert.deepEqual(Array.from(troca.monitores),['M001','M002']);
+assert.equal(troca.nova.cadastroNovo,false);
+let cpus = api.inventario(registros,[troca]);
+assert.equal(cpus.get('001').setor,'Estoque');
+assert.equal(cpus.get('001').postoId,null);
+assert.equal(cpus.get('002').setor,'TI');
+assert.equal(cpus.get('002').postoId,'posto-ti');
+assert.throws(()=>api.preparar({...dados,cpuNova:'001'},registros,[]));
+assert.throws(()=>api.preparar({...dados,cpuNova:'003'},registros,[]),'CPU in use in another post cannot be taken');
+assert.throws(()=>api.preparar({...dados,cpuNova:'M001',origemNova:'NOVA',marcaNova:'Positivo'},registros,[]));
+assert.throws(()=>api.preparar({...dados,cpuNova:' 002 ',origemNova:'NOVA',marcaNova:'Positivo'},registros,[]));
+assert.throws(()=>api.preparar({...dados,destinoTipo:'DOACAO'},registros,[]));
+assert.throws(()=>api.preparar({...dados,destinoTipo:'OUTRO_SETOR',destinoSetor:' ti '},registros,[]));
+const nova = {...api.preparar({...dados,cpuAtual:'002',cpuNova:'0004',origemNova:'NOVA',marcaNova:'Positivo',destinoTipo:'BAIXA'},registros,[troca]),id:'t2',sequencia:2};
+assert.equal(nova.nova.cadastroNovo,true);
+assert.equal(nova.postoId,'posto-ti');
+assert.deepEqual(Array.from(nova.monitores),['M001','M002']);
+cpus = api.inventario(registros,[troca,nova]);
+assert.equal(cpus.get('002').status,'BAIXA');
+assert.equal(cpus.get('0004').setor,'TI');
+assert.equal(cpus.get('0004').postoId,'posto-ti');
+assert.throws(()=>api.preparar({...dados,cpuAtual:'002'},registros,[troca,nova]));
+assert.throws(()=>api.preparar({...dados,cpuAtual:'0004',cpuNova:'0004',origemNova:'NOVA',marcaNova:'Lenovo'},registros,[troca,nova]));
+assert.equal(api.vinculado('posto-ti',[troca]),true);
+assert.equal(api.vinculado('estoque',[troca]),true);
+assert.equal(api.vinculado('rh',[troca]),false);
+assert.equal(JSON.stringify(registros),original);
+const historico = [troca,nova];
+const editada = api.planejarEdicao('t2',{...dados,cpuAtual:'002',cpuNova:'0004',origemNova:'NOVA',marcaNova:'Lenovo',destinoTipo:'BAIXA'},registros,historico);
+assert.equal(editada.lista.length,2);
+assert.equal(editada.troca.id,'t2');
+assert.equal(editada.troca.nova.marca,'Lenovo');
+assert.equal(api.inventario(registros,editada.lista).get('0004').marca,'Lenovo');
+assert.equal(historico[1].nova.marca,'Positivo','Edit planning must not mutate saved exchange');
+assert.throws(()=>api.planejarEdicao('t1',{...dados,cpuNova:'0005',origemNova:'NOVA',marcaNova:'Positivo'},registros,historico),/posterior/);
+assert.throws(()=>api.planejarEdicao('missing',dados,registros,historico));
+console.log('PASS: stock/new CPUs, duplicates, destinations, sequential replacements, post/monitor preservation, protected references.');

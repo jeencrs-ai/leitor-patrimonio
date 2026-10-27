@@ -1,0 +1,18 @@
+const assert=require('node:assert/strict'),fs=require('node:fs'),vm=require('node:vm'),path=require('node:path');
+const context=vm.createContext({});
+for(const file of ['cpu-trocas.js','consulta-patrimonio.js'])vm.runInContext(fs.readFileSync(path.join(__dirname,'..',file),'utf8'),context);
+vm.runInContext('globalThis.api=ConsultaPatrimonio;globalThis.cpu=TrocasCPU;',context);
+const registros=[{id:'ti',setor:'TI',movimento:'ENTRADA',cpu:'001',monitor1:'M1',marcas:{cpu:'Lenovo',monitor1:'AOC'},data:'2026-10-01'},{id:'stock',setor:'Estoque',movimento:'ENTRADA',cpu:'002',marcas:{cpu:'Positivo'},data:'2026-10-01'},{id:'exit',setor:'TI',movimento:'SAÍDA',tipo:'VELHO',patrimonio:'M1',marca:'AOC',data:'2026-10-02'},{id:'unknown',setor:'TI',movimento:'SAÍDA',tipo:'VELHO',patrimonio:'unknown',marca:'HP'}];
+const troca={...context.cpu.preparar({setor:'TI',cpuAtual:'001',cpuNova:'002',origemNova:'CADASTRADA',destinoTipo:'ESTOQUE'},registros,[]),id:'t1',data:'2026-10-03'};
+const todos=context.api.listar(registros,[troca]);
+assert.equal(todos.filter(r=>r.tipoEquipamento==='CPU').length,2);
+const lenovo=context.api.filtrar(todos,{tipo:'CPU',marca:' lenovo ',status:'ATIVA'});
+assert.equal(lenovo.length,1);assert.equal(lenovo[0].setor,'Estoque');assert.equal(lenovo[0].patrimonio,'001');
+assert.equal(context.api.filtrar(todos,{tipo:'CPU',marca:'Lenovo',setor:'TI'}).length,0);
+assert.equal(context.api.filtrar(todos,{tipo:'CPU',marca:'Positivo',setor:'ti'}).length,1);
+assert.equal(context.api.filtrar(todos,{tipo:'MONITOR',status:'BAIXA'}).length,1);
+assert.equal(todos.find(r=>r.patrimonio==='unknown').tipoEquipamento,'NAO_IDENTIFICADO');
+assert.equal(context.api.filtrar(todos,{patrimonio:'001'})[0].patrimonio,'001');
+assert.equal(context.api.historico(registros,[troca]).filter(r=>r.patrimonio==='001').length,2);
+assert.equal(context.api.listar([],[]).length,0);
+console.log('PASS: CPU/monitor/unknown types, brand/sector/status/asset filters, deduplicated current locations after swaps, complete history.');

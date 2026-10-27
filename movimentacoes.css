@@ -24,3 +24,7 @@
 @media(min-width:480px){.cards-marcas{grid-template-columns:repeat(4,minmax(0,1fr))}}
 #textoRelatorioMonitores {width:100%;resize:vertical;min-height:240px;border:1px solid #bdceca;border-radius:12px;padding:14px;font:inherit;font-size:14px;line-height:1.6;color:#183b39;background:#f8faf9}
 .link-botao {display:block;text-align:center;text-decoration:none;min-height:48px}
+.filtros-consulta {display:grid;grid-template-columns:minmax(0,1fr);gap:4px 14px}
+@media(min-width:480px){.filtros-consulta{grid-template-columns:repeat(2,minmax(0,1fr))}}
+#historicoTrocasCpu details {margin-top:16px;padding-top:12px;border-top:1px solid #d7e2dd}
+#historicoTrocasCpu summary {cursor:pointer;font-size:14px;font-weight:650}
