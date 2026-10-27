@@ -14,7 +14,15 @@ function setorDuplicado(nome,atual = '') {
 }
 function avisarSetorDuplicado(campo,nome) {
   const aviso = `O setor "${nome}" já está cadastrado. Use o setor existente na lista.`;
-  msg(aviso); campo.setCustomValidity(aviso); campo.reportValidity();
+  msg(aviso); campo.setCustomValidity(aviso);
+  if (campo.id === 'nomeCadastroSetor') {
+    renderCatalogoSetores();
+    $('nomeSetorExistente').textContent = nome;
+    $('usarSetorExistente').dataset.setor = nome;
+    $('setorExistenteBox').hidden = false;
+    $('usarSetorExistente').focus();
+    $('setorExistenteBox').scrollIntoView({behavior:'smooth',block:'nearest'});
+  } else campo.reportValidity();
 }
 const nomesCampos = {cpu:'CPU',monitor1:'Monitor 1',monitor2:'Monitor 2',patrimonio:'Patrimônio de saída'};
 function tela(id) {
@@ -100,16 +108,26 @@ function atualizarSetores() {
 }
 function renderCatalogoSetores() {
   $('listaCadastroSetores').replaceChildren();
-  setoresCadastrados.slice().sort((a,b) => a.localeCompare(b,'pt-BR')).forEach(nome => {
+  const busca = chaveSetor($('nomeCadastroSetor').value);
+  const nomes = setoresCadastrados.filter(nome => !busca || chaveSetor(nome).includes(busca)).sort((a,b) => a.localeCompare(b,'pt-BR'));
+  $('totalCadastroSetores').textContent = `${nomes.length} setor(es) encontrado(s) de ${setoresCadastrados.length} cadastrado(s).`;
+  nomes.forEach(nome => {
     const card = document.createElement('article'); card.className = 'registro';
     const titulo = document.createElement('h3'); titulo.textContent = nome;
     const usar = document.createElement('button'); usar.className = 'secundario'; usar.textContent = 'Usar este setor'; usar.onclick = () => abrirSetorSalvo(nome);
     const editar = document.createElement('button'); editar.className = 'voltar'; editar.textContent = 'Corrigir nome'; editar.onclick = () => corrigirSetor(nome);
     card.append(titulo,usar,editar); $('listaCadastroSetores').append(card);
   });
-  if (!setoresCadastrados.length) $('listaCadastroSetores').textContent = 'Nenhum setor cadastrado. Cadastre o primeiro acima.';
+  if (!nomes.length) $('listaCadastroSetores').textContent = setoresCadastrados.length ? 'Nenhum setor encontrado com este nome.' : 'Nenhum setor cadastrado. Cadastre o primeiro acima.';
 }
-$('abrirCadastroSetores').onclick = () => { renderCatalogoSetores(); tela('cadastroSetores'); $('nomeCadastroSetor').focus(); };
+$('abrirCadastroSetores').onclick = () => { $('nomeCadastroSetor').value = ''; $('nomeCadastroSetor').setCustomValidity(''); $('setorExistenteBox').hidden = true; renderCatalogoSetores(); tela('cadastroSetores'); };
+$('usarSetorExistente').onclick = () => {
+  const nome = $('usarSetorExistente').dataset.setor;
+  if (!setoresCadastrados.includes(nome)) return msg('Setor indisponível. Atualize a lista para consultar novamente.');
+  $('nomeCadastroSetor').value = ''; $('nomeCadastroSetor').setCustomValidity(''); $('setorExistenteBox').hidden = true;
+  abrirSetorSalvo(nome);
+};
+$('limparBuscaSetores').onclick = () => { $('nomeCadastroSetor').value = ''; $('nomeCadastroSetor').setCustomValidity(''); $('setorExistenteBox').hidden = true; renderCatalogoSetores(); };
 $('voltarCadastroSetores').onclick = () => tela('inicio');
 $('formCadastroSetor').onsubmit = async e => {
   e.preventDefault(); const nome = $('nomeCadastroSetor').value.trim().replace(/\s+/g,' ');
@@ -117,9 +135,10 @@ $('formCadastroSetor').onsubmit = async e => {
   const existente = setorDuplicado(nome);
   if (existente) return avisarSetorDuplicado($('nomeCadastroSetor'),existente);
   if (!await gravar(registros,trocas,false,[...setoresCadastrados,nome])) return;
-  $('nomeCadastroSetor').value = ''; $('setor').value = nome; msg(`Setor ${nome} cadastrado. Agora ele está disponível na lista.`);
+  $('nomeCadastroSetor').value = ''; $('setor').value = nome; $('setorExistenteBox').hidden = true; renderCatalogoSetores(); msg(`Setor ${nome} cadastrado. Agora ele está disponível na lista.`);
 };
 ['nomeCadastroSetor','novoNome'].forEach(id => { $(id).addEventListener('input',() => $(id).setCustomValidity('')); });
+$('nomeCadastroSetor').addEventListener('input',() => { $('setorExistenteBox').hidden = true; renderCatalogoSetores(); });
 function abrirSetorSalvo(nome) {
   setor = nome; $('setor').value = nome; $('nomeSetor').textContent = nome;
   editandoId = null; atualizarSetores(); tela('operacao');

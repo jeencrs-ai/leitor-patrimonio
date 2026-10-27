@@ -78,6 +78,15 @@ const seed = [{id:'posto-ti',setor:'TI',movimento:'ENTRADA',cpu:'001',marcas:{cp
   get('setorConsulta').value='Financeiro';get('setorConsulta').dispatchEvent(new w.Event('change'));assert(get('resultadoConsulta').children.length===1&&get('resultadoConsulta').textContent.includes('0003'),'Sector filter uses current CPU location');
   get('limparConsulta').click();get('visaoConsulta').value='HISTORICO';get('visaoConsulta').dispatchEvent(new w.Event('change'));assert(get('statusConsulta').textContent.includes('ocorr'),'Historical view distinguishes occurrences');
   loaded=load();w.location.reload();await loaded;await wait(()=>!get('salvar').disabled);assert(run('trocas[1].versoes.length')===1&&run("trocas[1].nova.marca")==='Lenovo','Edit and audit history survive reload');
+  get('abrirCadastroSetores').click();get('nomeCadastroSetor').value='  ADMINISTRACAO   GERAL  ';get('nomeCadastroSetor').dispatchEvent(new w.Event('input'));
+  assert(get('listaCadastroSetores').children.length===1,'Typed sector search finds accent/space-insensitive match');
+  const beforeDuplicateUse=run('revisao');get('formCadastroSetor').requestSubmit();
+  assert(!get('setorExistenteBox').hidden&&get('nomeSetorExistente').textContent==='Administra\u00e7\u00e3o Geral','Duplicate warning shows existing sector inline');
+  assert(w.document.activeElement===get('usarSetorExistente'),'Duplicate action receives focus instead of leaving keyboard tooltip');
+  get('usarSetorExistente').click();assert(!get('operacao').hidden&&run('setor')==='Administra\u00e7\u00e3o Geral','Existing empty sector opens directly');
+  assert(run('revisao')===beforeDuplicateUse,'Using existing sector does not duplicate or write data');
+  get('abrirCadastroSetores').click();assert(get('listaCadastroSetores').children.length===run('setoresCadastrados.length'),'Catalog lists all sectors including empty ones');
+  get('nomeCadastroSetor').value='not-found';get('nomeCadastroSetor').dispatchEvent(new w.Event('input'));assert(get('listaCadastroSetores').children.length===0,'Search clears stale results');get('limparBuscaSetores').click();assert(get('listaCadastroSetores').children.length===run('setoresCadastrados.length'),'Show all resets search');
   document.body.dataset.result='PASS';document.getElementById('result').textContent='PASS: real IndexedDB upgrade/backup, review/cancel, atomic commit/rollback, reload, protected history, sector rename, sequential swaps, monitor links, duplicate prevention, Excel, sector catalog creation/duplicates/persistence and shared selection lists, audited CPU-exchange edits, dependent-exchange protection, current inventory filters and result totals.';
 })().catch(e=>{document.body.dataset.result='FAIL';document.getElementById('result').textContent=e.stack});
 </script></body></html>

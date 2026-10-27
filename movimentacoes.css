@@ -28,3 +28,7 @@
 @media(min-width:480px){.filtros-consulta{grid-template-columns:repeat(2,minmax(0,1fr))}}
 #historicoTrocasCpu details {margin-top:16px;padding-top:12px;border-top:1px solid #d7e2dd}
 #historicoTrocasCpu summary {cursor:pointer;font-size:14px;font-weight:650}
+.aviso-setor-existente {margin:18px 0;padding:18px;border:2px solid #43816a;border-radius:16px;background:#e5f4ed;scroll-margin:20px}
+.aviso-setor-existente p {margin:0 0 6px}
+.aviso-setor-existente strong {display:block;overflow-wrap:anywhere}
+#listaCadastroSetores .registro {scroll-margin:20px}
